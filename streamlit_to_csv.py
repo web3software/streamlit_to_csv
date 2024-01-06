@@ -180,7 +180,7 @@ def run_tab2():
     # Set up Chrome options for headless mode
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Add this line for headless mode
-
+    chrome_options.add_argument('--disable-gpu')
     for container in article_containers:
         link = container.find('a', class_='linkbox__overlay')
         if link:
