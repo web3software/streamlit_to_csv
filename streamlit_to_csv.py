@@ -170,7 +170,7 @@ def download_data():
 def scrape_article_info(url):
 
     with st.spinner("Scrapping data..."):
-        driver = webdriver.Chrome(service=get_webdriver_service(logpath=logpath), options=get_webdriver_options())
+        driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
         driver.get(url)  
         driver.implicitly_wait(5)
 
