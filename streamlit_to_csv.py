@@ -17,8 +17,14 @@ access_key = os.getenv('discord_authorization_key')
 # access_key = st.secrets['discord_authorization_key']
 
 @st.cache_resource(show_spinner=False)
+def get_logpath():
+    return os.path.join(os.getcwd(), 'selenium.log')
+
+
+@st.cache_resource(show_spinner=False)
 def get_chromedriver_path():
     return shutil.which('chromedriver')
+
 
 @st.cache_resource(show_spinner=False)
 def get_webdriver_options():
@@ -32,13 +38,28 @@ def get_webdriver_options():
     options.add_argument("--disable-features=VizDisplayCompositor")
     return options
 
-def get_webdriver_service():
+
+def get_webdriver_service(logpath):
     service = Service(
-        executable_path=get_chromedriver_path()
+        executable_path=get_chromedriver_path(),
+        log_output=logpath,
     )
     return service
 
 
+def delete_selenium_log(logpath):
+    if os.path.exists(logpath):
+        os.remove(logpath)
+
+
+def show_selenium_log(logpath):
+    if os.path.exists(logpath):
+        with open(logpath) as f:
+            content = f.read()
+            st.code(body=content, language='log', line_numbers=True)
+    else:
+        st.warning('No log file found!')
+        
 def parse_timestamp(timestamp_str):
     try:
         dt = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M:%S.%f%z')
