@@ -4,16 +4,40 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 import pandas as pd
 import os
+import shutil
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
+# from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options 
 from selenium.webdriver.common.by import By
 
 load_dotenv()
 access_key = os.getenv('discord_authorization_key')
 # access_key = st.secrets['discord_authorization_key']
+
+@st.cache_resource(show_spinner=False)
+def get_chromedriver_path():
+    return shutil.which('chromedriver')
+
+@st.cache_resource(show_spinner=False)
+def get_webdriver_options():
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-features=NetworkService")
+    options.add_argument("--window-size=1920x1080")
+    options.add_argument("--disable-features=VizDisplayCompositor")
+    return options
+
+def get_webdriver_service():
+    service = Service(
+        executable_path=get_chromedriver_path()
+    )
+    return service
+
 
 def parse_timestamp(timestamp_str):
     try:
@@ -123,13 +147,10 @@ def download_data():
         df = pd.DataFrame(data)
         return df
 
-def scrape_article_info(url, chrome_options):
-    # response = requests.get(url)
-    # article_soup = BeautifulSoup(response.text, 'html.parser')
+def scrape_article_info(url):
 
-    # Pass chrome_options to webdriver
     with st.spinner("Scrapping data..."):
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+        driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
         driver.get(url)  
         driver.implicitly_wait(5)
 
@@ -176,18 +197,13 @@ def run_tab2():
     response = requests.get(base_url)
     soup = BeautifulSoup(response.text, 'html.parser')
     article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
-
-    # Set up Chrome options for headless mode
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Add this line for headless mode
-    chrome_options.add_argument('--disable-gpu')
     for container in article_containers:
         link = container.find('a', class_='linkbox__overlay')
         if link:
             href = link.get('href')
             full_url = f"https://decrypt.co/{href}" 
 
-            article_name, article_date, img_url, article_content = scrape_article_info(full_url, chrome_options)
+            article_name, article_date, img_url, article_content = scrape_article_info(full_url)
 
             # Display article information in a tabular form
             st.write(f"## {article_name}")
