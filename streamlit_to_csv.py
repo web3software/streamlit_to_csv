@@ -39,10 +39,9 @@ def get_webdriver_options():
     return options
 
 
-def get_webdriver_service(logpath):
+def get_webdriver_service():
     service = Service(
-        executable_path=get_chromedriver_path(),
-        log_output=logpath,
+        executable_path=get_chromedriver_path()
     )
     return service
 
@@ -59,7 +58,7 @@ def show_selenium_log(logpath):
             st.code(body=content, language='log', line_numbers=True)
     else:
         st.warning('No log file found!')
-        
+
 def parse_timestamp(timestamp_str):
     try:
         dt = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M:%S.%f%z')
@@ -171,7 +170,7 @@ def download_data():
 def scrape_article_info(url):
 
     with st.spinner("Scrapping data..."):
-        driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
+        driver = webdriver.Chrome(service=get_webdriver_service(logpath=logpath), options=get_webdriver_options())
         driver.get(url)  
         driver.implicitly_wait(5)
 
