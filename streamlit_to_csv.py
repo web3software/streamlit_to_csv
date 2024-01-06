@@ -83,7 +83,7 @@ def retrieve_messages_from_channel(channel_id, server_name, channel_name, header
     messages = []
     oldest_message_id = None
 
-    thirty_minutes_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(minutes=30)
+    thirty_minutes_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(minutes=180)
 
     url = f'https://discord.com/api/v9/channels/{channel_id}/messages'
     params = {'limit': 100}
