@@ -248,8 +248,8 @@ def fetch_video_details(video_url, developer_key, channel_id):
         st.write(f"Published At: {yt.publish_date}")
         st.write(f"Duration: {yt.length} seconds")
         st.write(f"Views: {yt.views}")
-        st.subheader("Subtitles")
-        st.write(subtitles)
+        # st.subheader("Subtitles")
+        # st.write(subtitles)
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -491,7 +491,7 @@ def run_tab3():
 
 # Function code for the second tab...
 def run_tab4():
-    st.subheader("Tab 4: Other Code")
+    st.subheader("Tab 4: Youtube")
     with st.spinner("Scrapping data..."):
         DEVELOPER_KEY = os.getenv('YOUTUBE_API_KEY')
         CHANNEL_IDS = ['UCfdrZpVbXl_HnmyYYo-N6Ig', 'UCk6jF6z-IZx4H00QTYlHwjw', 'UCMtJYS0PrtiUwlk6zjGDEMA', 'UCKQvGU-qtjEthINeViNbn6A', 'UCqK_GSMbpiV8spgD3ZGloSw', 'UCBCbEDO5tMP6saX9yNU_zYQ','UCN9Nj4tjXbVTLYWN0EKly_Q']
@@ -546,13 +546,59 @@ def run_tab5():
 
                 st.markdown("---")
 
+def run_tab6():
+    st.subheader("Tab 6: Crypto News")
+    num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+    with st.spinner("Scrapping data..."):
+        base_url = 'https://crypto.news/news/'
+        response = requests.get(base_url)
 
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Find all 'a' tags within the 'p' tags inside the post_loop_content_div
+        all_links = soup.find_all('p', class_='post-loop__title')
+
+        for i, all_links in enumerate(all_links[:num_articles]):
+            link = all_links.find('a')
+            if link:
+                href = link.get('href')
+                if href:
+                    st.write(f"[{link.text}]({href})")
+                    response = requests.get(href)
+
+                    article_soup = BeautifulSoup(response.text, 'html.parser')
+
+                    article_name = article_soup.find('h1', class_='post-detail__title').text.strip()
+                    st.title(f'# {i+1}.Article Name: {article_name}')
+
+                    date_time = article_soup.find('time', class_='post-detail__date').text.strip()
+                    st.write(f'Date: {date_time}')
+
+                    image_div = article_soup.find('div', class_='post-detail__media')
+
+                    # Find the img tag within the post_detail_media_div
+                    img_tag = image_div.find('img')
+
+                    # Extract and print the src attribute
+                    if img_tag:
+                        img_url = img_tag.get('src')
+                        if img_url:
+                            st.image(img_url, caption='Image', use_column_width=True)
+
+                    article_div = article_soup.find('div', class_='post-detail__content')
+
+                    # Find all 'p' tags within the post_detail_content_div
+                    all_paragraphs = article_div.find_all('p')
+
+                    # Extract and print the text content of each 'p' tag
+                    for paragraph in all_paragraphs:
+                        st.write(paragraph.get_text(strip=True), unsafe_allow_html=True)
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -565,3 +611,5 @@ elif selected_tab == "YouTube":
     run_tab4()
 elif selected_tab == "News BTC":
     run_tab5()
+elif selected_tab == "Crypto News":
+    run_tab6()
