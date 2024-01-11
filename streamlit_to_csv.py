@@ -16,7 +16,7 @@ import googleapiclient.discovery
 
 load_dotenv()
 # access_key = os.getenv('discord_authorization_key')
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = {
+service_key = {
   "type": st.secrets['type'],
   "project_id": st.secrets['project_id'],
   "private_key_id": st.secrets['private_key_id'],
@@ -29,6 +29,7 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = {
   "client_x509_cert_url": st.secrets['client_x509_cert_url'],
   "universe_domain": st.secrets['universe_domain']
 }
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = service_key
 
 access_key = st.secrets['discord_authorization_key']
 
