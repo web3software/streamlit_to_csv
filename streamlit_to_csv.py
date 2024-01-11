@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import os
 import shutil
+import json
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -29,7 +30,12 @@ service_key = {
   "client_x509_cert_url": st.secrets['client_x509_cert_url'],
   "universe_domain": st.secrets['universe_domain']
 }
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = service_key
+
+temp_key_file_path = "service_key.json"
+with open(temp_key_file_path, "w") as key_file:
+    json.dump(service_key, key_file)
+
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_key_file_path
 
 access_key = st.secrets['discord_authorization_key']
 
@@ -520,7 +526,7 @@ def run_tab4():
                     fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
             else:
                 print(f"No videos found for Channel {channel_id}.")
-
+    os.remove(temp_key_file_path)
 def run_tab5():
     st.subheader("Tab 5: News BTC News")
     num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
