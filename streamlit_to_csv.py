@@ -311,28 +311,28 @@ def run_tab1():
 
 # Function to run code for Tab 2
 # def run_tab2():
-    st.title("Article Information")
+    # st.title("Article Information")
 
-    base_url = 'https://decrypt.co/news'
-    response = requests.get(base_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
-    for container in article_containers:
-        link = container.find('a', class_='linkbox__overlay')
-        if link:
-            href = link.get('href')
-            full_url = f"https://decrypt.co/{href}" 
+    # base_url = 'https://decrypt.co/news'
+    # response = requests.get(base_url)
+    # soup = BeautifulSoup(response.text, 'html.parser')
+    # article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
+    # for container in article_containers:
+    #     link = container.find('a', class_='linkbox__overlay')
+    #     if link:
+    #         href = link.get('href')
+    #         full_url = f"https://decrypt.co/{href}" 
 
-            article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+    #         article_name, article_date, img_url, article_content = scrape_article_info(full_url)
 
-            # Display article information in a tabular form
-            st.write(f"## {article_name}")
-            st.write(f"**Date:** {article_date}")
-            st.image(img_url, caption="Image", use_column_width=True)
-            st.write("### Article Content:")
-            st.write(article_content)
+    #         # Display article information in a tabular form
+    #         st.write(f"## {article_name}")
+    #         st.write(f"**Date:** {article_date}")
+    #         st.image(img_url, caption="Image", use_column_width=True)
+    #         st.write("### Article Content:")
+    #         st.write(article_content)
 
-            st.markdown("---")  # Add a horizontal line between articles
+    #         st.markdown("---")  # Add a horizontal line between articles
 
 def run_tab2():
     st.title("Article Information")
