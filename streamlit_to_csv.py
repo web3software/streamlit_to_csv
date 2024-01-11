@@ -39,7 +39,6 @@ def get_webdriver_options():
     options.add_argument("--disable-features=VizDisplayCompositor")
     return options
 
-
 def get_webdriver_service():
     service = Service(
         executable_path=get_chromedriver_path()
@@ -78,11 +77,12 @@ def get_server_name(guild_id, headers):
         print(f"Error retrieving guild information for ID {guild_id}. Status code: {r_guild.status_code}")
         return 'Unknown Server'
 
-def retrieve_messages_from_channel(channel_id, server_name, channel_name, headers):
+def retrieve_messages_from_channel(channel_id, server_name, channel_name, headers, minutes):
     messages = []
     oldest_message_id = None
 
-    thirty_minutes_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(minutes=180)
+    current_time_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+    time_threshold = current_time_utc - timedelta(minutes=minutes)
 
     url = f'https://discord.com/api/v9/channels/{channel_id}/messages'
     params = {'limit': 100}
@@ -96,39 +96,22 @@ def retrieve_messages_from_channel(channel_id, server_name, channel_name, header
             return messages
 
         sorted_messages = sorted(json_data_channel, key=lambda x: parse_timestamp(x['timestamp']), reverse=True)
-        sorted_messages = [msg for msg in sorted_messages if parse_timestamp(msg['timestamp']) > thirty_minutes_ago]
+        sorted_messages = [msg for msg in sorted_messages if parse_timestamp(msg['timestamp']) > time_threshold]
 
         if not sorted_messages:
-            print("No new messages within the last 30 minutes.")
+            print(f"No new messages within the last {minutes} minutes.")
             return messages
 
         messages.extend(sorted_messages)
         oldest_message_id = sorted_messages[-1]['id'] if sorted_messages else oldest_message_id
-
-        # for message in sorted_messages:
-        #     timestamp = parse_timestamp(message['timestamp'])
-        #     author_name = message['author']['username']
-        #     original_name = message.get('author', {}).get('member', {}).get('nick', author_name)
-        #     content = (message['content'] if message['content'].strip() != "" 
-        #                else (message['attachments'][0]['url'] if message['attachments'] else "<Empty Message>"))
-
-            # data = {
-            #     'server': server_name,
-            #     'channel': channel_name,
-            #     'author': author_name,
-            #     'original_name': original_name,
-            #     'message': content,
-            #     'timestamp': timestamp
-            # }
-            # insert_message(data)  # Store data in the database (you can customize this function)
 
         return messages
     else:
         print(f"Error retrieving messages from channel {channel_id}. Status code: {r_channel.status_code}")
         return messages
 
-def download_data():
-    with st.spinner("Downloading data..."):
+def download_data(minutes):
+    with st.spinner(f"Downloading data for the last {minutes} minutes..."):
         data = {'server': [], 'channel': [], 'author': [], 'original_name': [], 'message': [], 'timestamp': []}
         group_channels = [
         ('884204406189490176', ['894619517441957908', '895350107137011723', '1174476193165226004', '955488909436014722', '1168298193646276671']),
@@ -139,6 +122,7 @@ def download_data():
         headers = {
         'Authorization': access_key
         }
+
         for group_id, channel_ids in group_channels:
             server_name = get_server_name(group_id, headers)
 
@@ -150,7 +134,7 @@ def download_data():
                     if found_channel:
                         channel_name = found_channel['name']
                         
-                        messages = retrieve_messages_from_channel(channel_id, server_name, channel_name, headers)
+                        messages = retrieve_messages_from_channel(channel_id, server_name, channel_name, headers, minutes)
                         for message in messages:
                             content = (message['content'] if message['content'].strip() != "" 
                             else (message['attachments'][0]['url'] if message['attachments'] else "<Empty Message>"))
@@ -280,10 +264,22 @@ def get_subtitles_string(video_id):
 
 
 # Function to run code for Tab 1
+# def run_tab1():
+#     st.subheader("Tab 1: Current Script")
+#     if st.button("Download Data"):
+#         df = download_data()
+#         st.write("Downloaded data:")
+#         st.write(df)
+
+#         # Save data to Excel
+#         excel_filename = "discord_data.xlsx"
+#         df.to_excel(excel_filename, index=False)
+#         st.success(f"Data saved to {excel_filename}")
 def run_tab1():
-    st.subheader("Tab 1: Current Script")
+    st.subheader("Tab 1: Discord Data Scraper")
+    minutes = st.number_input("Enter the number of minutes to retrieve data:", value=30, min_value=1)
     if st.button("Download Data"):
-        df = download_data()
+        df = download_data(minutes)
         st.write("Downloaded data:")
         st.write(df)
 
@@ -292,8 +288,9 @@ def run_tab1():
         df.to_excel(excel_filename, index=False)
         st.success(f"Data saved to {excel_filename}")
 
+
 # Function to run code for Tab 2
-def run_tab2():
+# def run_tab2():
     st.title("Article Information")
 
     base_url = 'https://decrypt.co/news'
@@ -317,17 +314,118 @@ def run_tab2():
 
             st.markdown("---")  # Add a horizontal line between articles
 
-# Function code for the second tab...
+def run_tab2():
+    st.title("Article Information")
+    num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+
+    base_url = 'https://decrypt.co/news'
+    response = requests.get(base_url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
+
+    for i, container in enumerate(article_containers[:num_articles]):
+        link = container.find('a', class_='linkbox__overlay')
+        if link:
+            href = link.get('href')
+            full_url = f"https://decrypt.co/{href}"
+
+            article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+            # Display article information in a tabular form
+            st.write(f"## {i+1}. {article_name}")
+            st.write(f"**Date:** {article_date}")
+            st.image(img_url, caption="Image", use_column_width=True)
+            st.write("### Article Content:")
+            st.write(article_content)
+
+            st.markdown("---") 
+
+# def run_tab3():
+#     st.subheader("Tab 3: Other Code")
+#     with st.spinner("Scrapping data..."):
+#         base_url = 'https://www.coindesk.com/tag/news/'
+#         response = requests.get(base_url)
+#         soup = BeautifulSoup(response.text, 'html.parser')
+
+#         h6_tags = soup.find_all('h6', class_="typography__StyledTypography-sc-owin6q-0 diMXjy")
+
+#         for h6_tag in h6_tags:
+#             link = h6_tag.find('a', class_="card-title")
+
+#             if link:
+#                 href = link.get('href')
+#                 full_url = f'https://www.coindesk.com/{href}'
+#                 response = requests.get(full_url)
+#                 article_soup = BeautifulSoup(response.text, 'html.parser')
+
+#                 article_name_element = article_soup.find('h1', class_="typography__StyledTypography-sc-owin6q-0 bSOJsQ")
+
+#                 if article_name_element:
+#                     article_name = article_name_element.text.strip()
+#                     st.write(f'# Article Name: {article_name}')
+
+#                     date_time_div = article_soup.find('div', class_="at-created label-with-icon")
+#                     if date_time_div:
+#                         date_time_span = date_time_div.find('span', class_="typography__StyledTypography-sc-owin6q-0 hcIsFR")
+#                         date_time_text = date_time_span.text.strip()
+#                         st.write(f'Date and Time: {date_time_text}')
+#                     else:
+#                         alt_date_time_div = article_soup.find('div', class_="align-right")
+#                         alt_date_time_span = alt_date_time_div.find('span', class_="typography__StyledTypography-sc-owin6q-0 hcIsFR")
+#                         alt_date_time_text = alt_date_time_span.text.strip() if alt_date_time_span else 'Date and Time not found'
+#                         st.write(f'Date and Time (Alternative): {alt_date_time_text}')
+
+#                     main_div = article_soup.find('div', class_='featured-imagestyles__FeaturedImageWrapper-sc-ojmof1-0 jGviVP at-rail-aligner at-rail-aligner-fi')
+
+#                     if main_div:
+#                         picture_tag = main_div.find('picture', class_='responsive-picturestyles__ResponsivePictureWrapper-sc-1urqrom-0 iLCXlQ')
+
+#                         if picture_tag:
+#                             img_tag = picture_tag.find('img')
+#                             image_url = img_tag['src'] if img_tag else 'Image not found'
+#                             st.image(image_url, caption='Article Image', use_column_width=True)
+#                         else:
+#                             st.write('Image not found within main div.')
+#                     else:
+#                         main_div2 = article_soup.find('div', class_='featured-imagestyles__FeaturedImageWrapper-sc-ojmof1-0 jGviVP featured-media featured-media-fi')
+#                         if main_div2:
+#                             picture_tag2 = main_div2.find('picture', class_='responsive-picturestyles__ResponsivePictureWrapper-sc-1urqrom-0 iLCXlQ')
+
+#                             if picture_tag2:
+#                                 img_tag2 = picture_tag2.find('img')
+#                                 image_url2 = img_tag2['src'] if img_tag2 else 'Image not found'
+#                                 st.image(image_url2, caption='Article Image', use_column_width=True)
+#                             else:
+#                                 st.write('Image not found within picture tag.')
+#                         else:
+#                             st.write('Image not in article.')
+
+#                     divs = article_soup.find_all('div', class_=["common-textstyles__StyledWrapper-sc-18pd49k-0 eSbCkN"])
+#                     st.header('Article Content')
+#                     for div in divs:
+#                         p_tags = div.find_all('p')
+#                         for p_tag in p_tags:
+#                             p_text = p_tag.text.strip()
+#                             st.write(p_text)
+#                 else:
+#                     st.write('Article Name not found. Moving to the next article.\n')
+
+#                 # Add a separator between articles
+#                 st.markdown("---")
+
+# Function code for the third tab...
 def run_tab3():
-    st.subheader("Tab 3: Other Code")
-    with st.spinner("Scrapping data..."):
+    st.subheader("Tab 3: Coin Desk News")
+    num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+
+    with st.spinner("Scraping data..."):
         base_url = 'https://www.coindesk.com/tag/news/'
         response = requests.get(base_url)
         soup = BeautifulSoup(response.text, 'html.parser')
 
         h6_tags = soup.find_all('h6', class_="typography__StyledTypography-sc-owin6q-0 diMXjy")
 
-        for h6_tag in h6_tags:
+        for i, h6_tag in enumerate(h6_tags[:num_articles]):
             link = h6_tag.find('a', class_="card-title")
 
             if link:
@@ -340,7 +438,7 @@ def run_tab3():
 
                 if article_name_element:
                     article_name = article_name_element.text.strip()
-                    st.write(f'# Article Name: {article_name}')
+                    st.write(f'# {i+1}. Article Name: {article_name}')
 
                     date_time_div = article_soup.find('div', class_="at-created label-with-icon")
                     if date_time_div:
@@ -386,7 +484,7 @@ def run_tab3():
                             p_text = p_tag.text.strip()
                             st.write(p_text)
                 else:
-                    st.write('Article Name not found. Moving to the next article.\n')
+                    st.write(f'{i+1}. Article Name not found. Moving to the next article.\n')
 
                 # Add a separator between articles
                 st.markdown("---")
@@ -409,11 +507,52 @@ def run_tab4():
             else:
                 print(f"No videos found for Channel {channel_id}.")
 
+def run_tab5():
+    st.subheader("Tab 5: News BTC News")
+    num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+    with st.spinner("Scraping data..."):
+        base_url = 'https://www.newsbtc.com/news/'
+        response = requests.get(base_url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Find all 'a' tags within the h3 elements
+        anchor_tags = soup.find_all('h3', class_='jeg_post_title')
+
+        for i, anchor_tags in enumerate(anchor_tags[:num_articles]):
+            link = anchor_tags.find('a')
+            if link:
+                url = link.get('href')
+                #st.markdown(f"[{url}]({url})")
+
+                response = requests.get(url)
+                article_soup = BeautifulSoup(response.text, 'html.parser')
+
+                article_name = article_soup.find('h1', class_='jeg_post_title').text.strip()
+                st.markdown(f'# {i+1}. {article_name}')
+
+                img_tag = article_soup.find('div', class_='single-post-hero-background').find('img')
+                if img_tag:
+                    img_src = img_tag.get('src')
+                    st.image(img_src, caption='Article Image', use_column_width=True)
+
+                date_div = article_soup.find('div', class_='jeg_meta_date')
+                article_date = date_div.find('a').text.strip()
+                st.write(f'**Article Date:** {article_date}')
+
+                content_div = article_soup.find('div', class_='content-inner')
+                paragraphs = content_div.find_all('p')
+                for paragraph in paragraphs:
+                    st.markdown(paragraph.text)
+
+                st.markdown("---")
+
+
+
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -424,3 +563,5 @@ elif selected_tab == "Coin Desk News":
     run_tab3()
 elif selected_tab == "YouTube":
     run_tab4()
+elif selected_tab == "News BTC":
+    run_tab5()
