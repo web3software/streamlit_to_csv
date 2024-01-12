@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 import pandas as pd
 import os
 import shutil
-import json
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -14,30 +13,13 @@ from selenium.webdriver.common.by import By
 from pytube import YouTube
 from youtube_transcript_api import YouTubeTranscriptApi
 import googleapiclient.discovery
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 load_dotenv()
-# access_key = os.getenv('discord_authorization_key')
-service_key = {
-  "type": st.secrets['type'],
-  "project_id": st.secrets['project_id'],
-  "private_key_id": st.secrets['private_key_id'],
-  "private_key": st.secrets['private_key'],
-  "client_email": st.secrets['client_email'],
-  "client_id": st.secrets['client_id'],
-  "auth_uri": st.secrets['auth_uri'],
-  "token_uri": st.secrets['token_uri'],
-  "auth_provider_x509_cert_url": st.secrets['auth_provider_x509_cert_url'],
-  "client_x509_cert_url": st.secrets['client_x509_cert_url'],
-  "universe_domain": st.secrets['universe_domain']
-}
-
-temp_key_file_path = "service_key.json"
-with open(temp_key_file_path, "w") as key_file:
-    json.dump(service_key, key_file)
-
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_key_file_path
-
-access_key = st.secrets['discord_authorization_key']
+access_key = os.getenv('discord_authorization_key')
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_key.json'
+# access_key = st.secrets['discord_authorization_key']
 
 @st.cache_resource(show_spinner=False)
 def get_logpath():
@@ -282,6 +264,52 @@ def get_subtitles_string(video_id):
     else:
         return "No English subtitles found."
 
+def scrape_and_display_article(url):
+    response = requests.get(url)
+    article_soup = BeautifulSoup(response.text, 'html.parser')
+
+    article_name_element = article_soup.find('h1', class_="typography__StyledTypography-sc-owin6q-0 bSOJsQ")
+    if article_name_element:
+        article_name = article_name_element.text.strip()
+        st.write(f'# {article_name}')
+
+        main_div = article_soup.find('div', class_='featured-imagestyles__FeaturedImageWrapper-sc-ojmof1-0 jGviVP at-rail-aligner at-rail-aligner-fi')
+        if not main_div:
+            main_div = article_soup.find('div', class_='featured-imagestyles__FeaturedImageWrapper-sc-ojmof1-0 jGviVP featured-media featured-media-fi')
+
+        if main_div:
+            picture_tag = main_div.find('picture', class_='responsive-picturestyles__ResponsivePictureWrapper-sc-1urqrom-0 iLCXlQ')
+            if picture_tag:
+                img_tag = picture_tag.find('img')
+                if img_tag:
+                    image_url = img_tag['src']
+                    st.image(image_url, caption='Article Image', use_column_width=True)
+                else:
+                    st.write('Img tag not found within picture tag.')
+            else:
+                st.write('Picture tag not found within main div.')
+        else:
+            st.write('Image not in article.')
+
+        date_time_div = article_soup.find('div', class_="at-created label-with-icon")
+        if not date_time_div:
+            date_time_div = article_soup.find('div', class_="align-right")
+
+        if date_time_div:
+            date_time_span = date_time_div.find('span', class_="typography__StyledTypography-sc-owin6q-0 hcIsFR")
+            date_time_text = date_time_span.text.strip()
+            st.write(f'## Date and Time\n{date_time_text}')
+        else:
+            st.write('Date and Time not found')
+
+        divs = article_soup.find_all('div', class_=["common-textstyles__StyledWrapper-sc-18pd49k-0 eSbCkN"])
+        for div in divs:
+            p_tags = div.find_all('p')
+            for p_tag in p_tags:
+                p_text = p_tag.text.strip()
+                st.markdown(f'{p_text}\n\n')
+    else:
+        st.write('Article Name not found. Moving to the next article.\n')
 
 # Function to run code for Tab 1
 # def run_tab1():
@@ -526,7 +554,7 @@ def run_tab4():
                     fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
             else:
                 print(f"No videos found for Channel {channel_id}.")
-    os.remove(temp_key_file_path)
+
 def run_tab5():
     st.subheader("Tab 5: News BTC News")
     num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
@@ -614,11 +642,63 @@ def run_tab6():
                     for paragraph in all_paragraphs:
                         st.write(paragraph.get_text(strip=True), unsafe_allow_html=True)
 
+def run_tab7():
+    with st.spinner("Scrapping data..."):
+        st.subheader("Coindesk Market Scraper")
+    
+        num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+        driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
+        base_url = 'https://www.coindesk.com/markets/'
+        driver.get(base_url)
+
+        wait = WebDriverWait(driver, 30)  # Increased timeout
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'h5.typography__StyledTypography-sc-owin6q-0.keiOrg')))
+
+        page_source = driver.page_source
+
+        soup = BeautifulSoup(page_source, 'html.parser')
+        h5_tags = soup.find_all('h5', class_="typography__StyledTypography-sc-owin6q-0 keiOrg")
+        for i, container in enumerate(h5_tags[:num_articles]):
+            link = container.find('a', class_="card-title")
+            if link:
+                href = link.get('href')
+                full_url = f'https://www.coindesk.com/{href}'
+                st.write(full_url)
+                scrape_and_display_article(full_url)
+
+        driver.quit()
+
+def run_tab8():
+    with st.spinner("Scrapping data..."):
+        st.subheader("Coindesk Finance Scraper")
+    
+        num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+        driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
+        base_url = 'https://www.coindesk.com/business/'
+        driver.get(base_url)
+
+        wait = WebDriverWait(driver, 30)  # Increased timeout
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'h5.typography__StyledTypography-sc-owin6q-0.keiOrg')))
+
+        page_source = driver.page_source
+
+        soup = BeautifulSoup(page_source, 'html.parser')
+        h5_tags = soup.find_all('h5', class_="typography__StyledTypography-sc-owin6q-0 keiOrg")
+        for i, container in enumerate(h5_tags[:num_articles]):
+            link = container.find('a', class_="card-title")
+            if link:
+                href = link.get('href')
+                full_url = f'https://www.coindesk.com/{href}'
+                st.write(full_url)
+                scrape_and_display_article(full_url)
+
+        driver.quit()
+
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -633,3 +713,7 @@ elif selected_tab == "News BTC":
     run_tab5()
 elif selected_tab == "Crypto News":
     run_tab6()
+elif selected_tab == "Coin Desk Market":
+    run_tab7()
+elif selected_tab == "Coin Desk Finance":
+    run_tab8()
