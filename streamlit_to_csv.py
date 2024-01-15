@@ -15,6 +15,8 @@ from youtube_transcript_api import YouTubeTranscriptApi
 import googleapiclient.discovery
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
+
 
 load_dotenv()
 access_key = os.getenv('discord_authorization_key')
@@ -152,9 +154,37 @@ def download_data(minutes):
         df = pd.DataFrame(data)
         return df
 
-def scrape_article_info(url):
+# def scrape_article_info(url):
 
-    with st.spinner("Scrapping data..."):
+#     with st.spinner("Scrapping data..."):
+#         driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
+#         driver.get(url)  
+#         driver.implicitly_wait(5)
+
+#         # Extract article name
+#         article_name_element = driver.find_elements(By.TAG_NAME, 'h1')
+#         article_name = article_name_element[0].text.strip()
+
+#         # Extract article date
+#         time_element = driver.find_element(By.XPATH, "//time[@datetime]")
+#         article_date = time_element.text.strip()
+
+#         # Extract image URL
+#         div_element_image = driver.find_element(By.XPATH, "//div[contains(@class, 'gg-dark:p-1')]")
+#         img_element = div_element_image.find_element(By.TAG_NAME, 'img')
+#         img_url = img_element.get_attribute('src')
+
+#         # Extract article content
+#         div_element = driver.find_element(By.XPATH, "//div[contains(@class, 'grid grid-cols-1 md:grid-cols-8 unreset post-content md:pb-20')]")
+#         p_elements = div_element.find_elements(By.XPATH, ".//p[contains(@class, 'font-meta-serif-pro scene:font-noto-sans scene:text-base scene:md:text-lg font-normal text-lg md:text-xl md:leading-9 tracking-px text-body gg-dark:text-neutral-100')]")
+#         article_content = '\n'.join([p.text.strip() for p in p_elements])
+
+#         driver.quit()
+
+#         return article_name, article_date, img_url, article_content
+    
+def scrape_article_info(url):
+    with st.spinner("Scraping data..."):
         driver = webdriver.Chrome(service=get_webdriver_service(), options=get_webdriver_options())
         driver.get(url)  
         driver.implicitly_wait(5)
@@ -172,14 +202,24 @@ def scrape_article_info(url):
         img_element = div_element_image.find_element(By.TAG_NAME, 'img')
         img_url = img_element.get_attribute('src')
 
-        # Extract article content
-        div_element = driver.find_element(By.XPATH, "//div[contains(@class, 'grid grid-cols-1 md:grid-cols-8 unreset post-content md:pb-20')]")
-        p_elements = div_element.find_elements(By.XPATH, ".//p[contains(@class, 'font-meta-serif-pro scene:font-noto-sans scene:text-base scene:md:text-lg font-normal text-lg md:text-xl md:leading-9 tracking-px text-body gg-dark:text-neutral-100')]")
-        article_content = '\n'.join([p.text.strip() for p in p_elements])
+        # Try the first XPath for article content
+        try:
+            div_element = driver.find_element(By.XPATH, "//div[contains(@class, 'grid grid-cols-1 md:grid-cols-8 unreset post-content md:pb-20')]")
+            p_elements = div_element.find_elements(By.XPATH, ".//p[contains(@class, 'font-meta-serif-pro scene:font-noto-sans scene:text-base scene:md:text-lg font-normal text-lg md:text-xl md:leading-9 tracking-px text-body gg-dark:text-neutral-100')]")
+            article_content = '\n'.join([p.text.strip() for p in p_elements])
+        except NoSuchElementException:
+            # If the first XPath fails, try the second XPath
+            try:
+                div_element = driver.find_element(By.XPATH, "//span[contains(text())]")
+                p_elements = div_element.find_elements(By.XPATH, ".//p")
+                article_content = '\n'.join([p.text.strip() for p in p_elements])
+            except NoSuchElementException:
+                article_content = "Unable to extract article content"
 
         driver.quit()
 
         return article_name, article_date, img_url, article_content
+
 
 def get_channel_info(api_key, channel_id):
     api_service_name = "youtube"
@@ -199,26 +239,54 @@ def get_channel_info(api_key, channel_id):
         print(f"An error occurred: {e}")
         return None
 
+# def get_latest_videos(api_key, channel_id, max_results=5):
+#     api_service_name = "youtube"
+#     api_version = "v3"
+
+#     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=api_key)
+
+#     request = youtube.search().list(
+#         part="snippet",
+#         channelId=channel_id,
+#         order="date",
+#         type="video",
+#         maxResults=max_results
+#     )
+
+#     try:
+#         response = request.execute()
+#         return response.get("items", [])
+#     except Exception as e:
+#         print(f"An error occurred: {e}")
+#         return []
+
 def get_latest_videos(api_key, channel_id, max_results=5):
     api_service_name = "youtube"
     api_version = "v3"
 
     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=api_key)
 
-    request = youtube.search().list(
-        part="snippet",
-        channelId=channel_id,
-        order="date",
-        type="video",
-        maxResults=max_results
+    request = youtube.channels().list(
+        part="contentDetails",
+        id=channel_id
     )
 
     try:
+        response = request.execute()
+        uploads_playlist_id = response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+
+        request = youtube.playlistItems().list(
+            part="snippet",
+            playlistId=uploads_playlist_id,
+            maxResults=max_results
+        )
+
         response = request.execute()
         return response.get("items", [])
     except Exception as e:
         print(f"An error occurred: {e}")
         return []
+
 
 def get_english_subtitles(video_id):
     try:
@@ -362,6 +430,91 @@ def run_tab1():
 
     #         st.markdown("---")  # Add a horizontal line between articles
 
+# def run_tab2():
+#     st.title("Article Information")
+#     #num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+
+#     base_url = 'https://decrypt.co/news'
+#     response = requests.get(base_url)
+#     soup = BeautifulSoup(response.text, 'html.parser')
+#     first_containers = soup.find_all('div', class_='mt-2 md:col-span-4 md:mt-0')
+#     second_containers = soup.find_all('h3', class_="font-medium xl:font-normal mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
+#     third_containers = soup.find_all('h3', class_="font-medium mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
+#     article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
+
+#     for fisrt in first_containers:
+#         first_links = fisrt.find('a', class_='linkbox__overlay')
+#         if first_links:
+#             hrefs = first_links.get('href')
+#             full_url = f"https://decrypt.co{hrefs}"
+
+#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+#             # Display article information in a tabular form
+#             st.write(f"##. {article_name}")
+#             st.write(f"**Date:** {article_date}")
+#             st.image(img_url, caption="Image", use_column_width=True)
+#             st.write("### Article Content:")
+#             st.write(article_content)
+
+#             st.markdown("---") 
+
+#     for second in second_containers:
+#         second_links = second.find('a', class_="linkbox__overlay")
+#         if second_links:
+#             hrefs2 = second_links.get('href')
+#             full_url = f"https://decrypt.co{hrefs2}"
+
+#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+#             # Display article information in a tabular form
+#             st.write(f"##. {article_name}")
+#             st.write(f"**Date:** {article_date}")
+#             st.image(img_url, caption="Image", use_column_width=True)
+#             st.write("### Article Content:")
+#             st.write(article_content)
+
+#             st.markdown("---") 
+
+#     for third in third_containers:
+#         third_links = third.find('a', class_="linkbox__overlay")
+#         if third_links:
+#             hrefs3 = third_links.get('href')
+#             full_url = f"https://decrypt.co{hrefs3}"
+
+#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+#             # Display article information in a tabular form
+#             st.write(f"##. {article_name}")
+#             st.write(f"**Date:** {article_date}")
+#             st.image(img_url, caption="Image", use_column_width=True)
+#             st.write("### Article Content:")
+#             st.write(article_content)
+
+#             st.markdown("---") 
+
+
+ 
+#     for container in article_containers:
+#         link = container.find('a', class_='linkbox__overlay')
+#         if link:
+#             href = link.get('href')
+#             full_url = f"https://decrypt.co/{href}"
+
+#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+            
+
+#             # Display article information in a tabular form
+#             st.write(f"##. {article_name}")
+#             st.write(f"**Date:** {article_date}")
+#             st.image(img_url, caption="Image", use_column_width=True)
+#             st.write("### Article Content:")
+#             st.write(article_content)
+
+#             st.markdown("---") 
+        
+
 def run_tab2():
     st.title("Article Information")
     num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
@@ -369,9 +522,80 @@ def run_tab2():
     base_url = 'https://decrypt.co/news'
     response = requests.get(base_url)
     soup = BeautifulSoup(response.text, 'html.parser')
+    first_containers = soup.find_all('div', class_='mt-2 md:col-span-4 md:mt-0')
+    second_containers = soup.find_all('h3', class_="font-medium xl:font-normal mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
+    third_containers = soup.find_all('h3', class_="font-medium mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
     article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
 
-    for i, container in enumerate(article_containers[:num_articles]):
+    total_articles_displayed = 0  # Track the total number of articles displayed
+
+    for fisrt in first_containers:
+        if total_articles_displayed >= num_articles:
+            break
+
+        first_links = fisrt.find('a', class_='linkbox__overlay')
+        if first_links:
+            hrefs = first_links.get('href')
+            full_url = f"https://decrypt.co{hrefs}"
+
+            article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+            # Display article information in a tabular form
+            st.markdown(f"# {article_name}")
+            st.write(f"**Date:** {article_date}")
+            st.image(img_url, caption="Image", use_column_width=True)
+            st.write("### Article Content:")
+            st.write(article_content)
+
+            st.markdown("---") 
+            total_articles_displayed += 1
+
+    for second in second_containers:
+        if total_articles_displayed >= num_articles:
+            break
+
+        second_links = second.find('a', class_="linkbox__overlay")
+        if second_links:
+            hrefs2 = second_links.get('href')
+            full_url = f"https://decrypt.co{hrefs2}"
+
+            article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+            # Display article information in a tabular form
+            st.markdown(f"# {article_name}")
+            st.write(f"**Date:** {article_date}")
+            st.image(img_url, caption="Image", use_column_width=True)
+            st.write("### Article Content:")
+            st.write(article_content)
+
+            st.markdown("---") 
+            total_articles_displayed += 1
+
+    for third in third_containers:
+        if total_articles_displayed >= num_articles:
+            break
+
+        third_links = third.find('a', class_="linkbox__overlay")
+        if third_links:
+            hrefs3 = third_links.get('href')
+            full_url = f"https://decrypt.co{hrefs3}"
+
+            article_name, article_date, img_url, article_content = scrape_article_info(full_url)
+
+            # Display article information in a tabular form
+            st.markdown(f"# {article_name}")
+            st.write(f"**Date:** {article_date}")
+            st.image(img_url, caption="Image", use_column_width=True)
+            st.write("### Article Content:")
+            st.write(article_content)
+
+            st.markdown("---") 
+            total_articles_displayed += 1
+
+    for container in article_containers:
+        if total_articles_displayed >= num_articles:
+            break
+
         link = container.find('a', class_='linkbox__overlay')
         if link:
             href = link.get('href')
@@ -380,13 +604,15 @@ def run_tab2():
             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
 
             # Display article information in a tabular form
-            st.write(f"## {i+1}. {article_name}")
+            st.markdown(f"# {article_name}")
             st.write(f"**Date:** {article_date}")
             st.image(img_url, caption="Image", use_column_width=True)
             st.write("### Article Content:")
             st.write(article_content)
 
             st.markdown("---") 
+            total_articles_displayed += 1
+
 
 # def run_tab3():
 #     st.subheader("Tab 3: Other Code")
@@ -549,34 +775,46 @@ def run_tab4():
             if latest_videos:
                 print(f"\nLatest Videos for Channel {channel_id}:")
                 for video in latest_videos:
-                    video_id = video['id']['videoId']
+                    video_id = video['snippet']['resourceId']['videoId']
                     video_url = f"https://www.youtube.com/watch?v={video_id}"
                     fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
             else:
                 print(f"No videos found for Channel {channel_id}.")
 
+        # for channel_id in CHANNEL_IDS:
+        #     latest_videos = get_latest_videos(DEVELOPER_KEY, channel_id)
+        #     if latest_videos:
+        #         print(f"\nLatest Videos for Channel {channel_id}:")
+        #         for video in latest_videos:
+        #             video_id = video['id']['videoId']
+        #             video_url = f"https://www.youtube.com/watch?v={video_id}"
+        #             fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
+        #     else:
+        #         print(f"No videos found for Channel {channel_id}.")
+
 def run_tab5():
     st.subheader("Tab 5: News BTC News")
     num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
+    total_articles_displayed = 0  # Track the total number of articles displayed
+
     with st.spinner("Scraping data..."):
         base_url = 'https://www.newsbtc.com/news/'
         response = requests.get(base_url)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Find all 'a' tags within the h3 elements
-        anchor_tags = soup.find_all('h3', class_='jeg_post_title')
+        first_container = soup.find_all('h2', class_='jeg_post_title')
+        for fisrt in first_container:
+            if total_articles_displayed >= num_articles:
+                break
 
-        for i, anchor_tags in enumerate(anchor_tags[:num_articles]):
-            link = anchor_tags.find('a')
+            link = fisrt.find('a')
             if link:
                 url = link.get('href')
-                #st.markdown(f"[{url}]({url})")
-
                 response = requests.get(url)
                 article_soup = BeautifulSoup(response.text, 'html.parser')
 
                 article_name = article_soup.find('h1', class_='jeg_post_title').text.strip()
-                st.markdown(f'# {i+1}. {article_name}')
+                st.markdown(f'# {article_name}')
 
                 img_tag = article_soup.find('div', class_='single-post-hero-background').find('img')
                 if img_tag:
@@ -593,6 +831,42 @@ def run_tab5():
                     st.markdown(paragraph.text)
 
                 st.markdown("---")
+                total_articles_displayed += 1
+
+        # Find all 'a' tags within the h3 elements
+        anchor_tags = soup.find_all('h3', class_='jeg_post_title')
+
+        for a_tag in anchor_tags:
+            if total_articles_displayed >= num_articles:
+                break
+
+            link = a_tag.find('a')
+            if link:
+                url = link.get('href')
+                # st.markdown(f"[{url}]({url})")
+
+                response = requests.get(url)
+                article_soup = BeautifulSoup(response.text, 'html.parser')
+
+                article_name = article_soup.find('h1', class_='jeg_post_title').text.strip()
+                st.markdown(f'# . {article_name}')
+
+                img_tag = article_soup.find('div', class_='single-post-hero-background').find('img')
+                if img_tag:
+                    img_src = img_tag.get('src')
+                    st.image(img_src, caption='Article Image', use_column_width=True)
+
+                date_div = article_soup.find('div', class_='jeg_meta_date')
+                article_date = date_div.find('a').text.strip()
+                st.write(f'**Article Date:** {article_date}')
+
+                content_div = article_soup.find('div', class_='content-inner')
+                paragraphs = content_div.find_all('p')
+                for paragraph in paragraphs:
+                    st.markdown(paragraph.text)
+
+                st.markdown("---")
+                total_articles_displayed += 1
 
 def run_tab6():
     st.subheader("Tab 6: Crypto News")
