@@ -16,11 +16,32 @@ import googleapiclient.discovery
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+import json
 
 
 load_dotenv()
-access_key = os.getenv('discord_authorization_key')
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_key.json'
+service_key = {
+  "type": st.secrets['type'],
+  "project_id": st.secrets['project_id'],
+  "private_key_id": st.secrets['private_key_id'],
+  "private_key": st.secrets['private_key'],
+  "client_email": st.secrets['client_email'],
+  "client_id": st.secrets['client_id'],
+  "auth_uri": st.secrets['auth_uri'],
+  "token_uri": st.secrets['token_uri'],
+  "auth_provider_x509_cert_url": st.secrets['auth_provider_x509_cert_url'],
+  "client_x509_cert_url": st.secrets['client_x509_cert_url'],
+  "universe_domain": st.secrets['universe_domain']
+}
+
+temp_key_file_path = "service_key.json"
+with open(temp_key_file_path, "w") as key_file:
+    json.dump(service_key, key_file)
+
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_key_file_path
+
+access_key = st.secrets['discord_authorization_key']
+# access_key = os.getenv('discord_authorization_key')
 # access_key = st.secrets['discord_authorization_key']
 
 @st.cache_resource(show_spinner=False)
@@ -767,7 +788,8 @@ def run_tab3():
 def run_tab4():
     st.subheader("Tab 4: Youtube")
     with st.spinner("Scrapping data..."):
-        DEVELOPER_KEY = os.getenv('YOUTUBE_API_KEY')
+        # DEVELOPER_KEY = os.getenv('YOUTUBE_API_KEY')
+        DEVELOPER_KEY = st.secrets['YOUTUBE_API_KEY']
         CHANNEL_IDS = ['UCfdrZpVbXl_HnmyYYo-N6Ig', 'UCk6jF6z-IZx4H00QTYlHwjw', 'UCMtJYS0PrtiUwlk6zjGDEMA', 'UCKQvGU-qtjEthINeViNbn6A', 'UCqK_GSMbpiV8spgD3ZGloSw', 'UCBCbEDO5tMP6saX9yNU_zYQ','UCN9Nj4tjXbVTLYWN0EKly_Q']
 
         for channel_id in CHANNEL_IDS:
@@ -791,6 +813,7 @@ def run_tab4():
         #             fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
         #     else:
         #         print(f"No videos found for Channel {channel_id}.")
+    os.remove(temp_key_file_path)
 
 def run_tab5():
     st.subheader("Tab 5: News BTC News")
