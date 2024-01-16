@@ -991,11 +991,83 @@ def run_tab8():
 
         driver.quit()
 
+
+def run_tab9():
+    st.subheader("Tab 9: Coin Telegraph")
+    
+    # Get the number of articles from the user
+    num_articles = st.number_input("Enter the number of articles", value=5, min_value=1, max_value=20)
+
+    url = 'https://cointelegraph.com/category/latest-news'
+
+    chrome_options = webdriver.ChromeOptions()
+    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36'
+    chrome_options.add_argument(f'user-agent={user_agent}')
+    chrome_options.add_argument('--headless')
+
+    # Use st.spinner to show a loading spinner while the content is being fetched
+    with st.spinner("Fetching content..."):
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get(url)
+        driver.implicitly_wait(5)
+        page_source = driver.page_source
+        driver.quit()
+
+    soup = BeautifulSoup(page_source, 'html.parser')
+
+    allPage = soup.find('div', class_="category-page__content-col")
+    MainDiv = allPage.find('div', class_="group category-page__posts inline")
+    allList = MainDiv.find_all('li', class_="group-[.inline]:mb-8")
+
+    # Loop through the specified number of articles
+    for i, a_tag in enumerate(allList[:num_articles]):
+        listRightDiv = a_tag.find('div', class_="post-card-inline__content")
+        rightDivHeader = listRightDiv.find('div', class_="post-card-inline__header")
+        all_links = rightDivHeader.find_all('a', class_='post-card-inline__title-link')
+
+        for a in all_links:
+            href_attribute = a.get('href')
+            full_url = f'https://cointelegraph.com/{href_attribute}'
+            st.write(full_url)
+            date_time = rightDivHeader.find('time', class_='post-card-inline__date').text.strip()
+            st.write(f'Article Date: {date_time}')
+
+            # Show loading spinner for the article content
+            with st.spinner("Fetching article content..."):
+                driver = webdriver.Chrome(options=chrome_options)
+                driver.get(full_url)
+                driver.implicitly_wait(5)
+                page_source = driver.page_source
+                driver.quit()
+
+            article_soup = BeautifulSoup(page_source, 'html.parser')
+            first_div = article_soup.find('div', class_='post post-page__article')
+            second_div = first_div.find('article', class_='post__article')
+            article_name = second_div.find('h1', class_='post__title').text.strip()
+            st.write(f'# Article Name: {article_name}')
+
+            img_div = article_soup.find('div', class_='lazy-image post-cover__image lazy-image_loaded lazy-image_immediate')
+            img_tag = img_div.find('img')
+            image_url = img_tag['src']
+            st.image(image_url, caption='Image', use_column_width=True)
+
+            article_content = article_soup.find('div', class_='post-content relative')
+            paragraphs = article_content.find_all('p')
+
+            # Convert paragraphs to a markdown string
+            article_markdown = "\n\n".join([para.text for para in paragraphs])
+            st.markdown(article_markdown)
+            st.markdown("---")
+
+            # Break the loop if the specified number of articles is reached
+            if i == num_articles - 1:
+                break
+
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1014,3 +1086,5 @@ elif selected_tab == "Coin Desk Market":
     run_tab7()
 elif selected_tab == "Coin Desk Finance":
     run_tab8()
+elif selected_tab == "Coin Telegraph":
+    run_tab9()
