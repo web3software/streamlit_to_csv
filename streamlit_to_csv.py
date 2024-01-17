@@ -334,6 +334,7 @@ def fetch_video_details(video_url, developer_key, channel_id):
         subtitles = get_subtitles_string(yt.video_id)
         youtuber_info = get_youtuber_info(developer_key, channel_id)
         st.subheader("\nVideo Details:")
+        st.write(f"Video URL: {yt.watch_url}")
         st.write(f"Title: {yt.title}")
         st.write(f"YouTuber Name: {youtuber_info['title']}")
         st.write(f"Published At: {yt.publish_date}")
@@ -791,9 +792,9 @@ def run_tab4():
         # DEVELOPER_KEY = os.getenv('YOUTUBE_API_KEY')
         DEVELOPER_KEY = st.secrets['YOUTUBE_API_KEY']
         CHANNEL_IDS = ['UCfdrZpVbXl_HnmyYYo-N6Ig', 'UCk6jF6z-IZx4H00QTYlHwjw', 'UCMtJYS0PrtiUwlk6zjGDEMA', 'UCKQvGU-qtjEthINeViNbn6A', 'UCqK_GSMbpiV8spgD3ZGloSw', 'UCBCbEDO5tMP6saX9yNU_zYQ','UCN9Nj4tjXbVTLYWN0EKly_Q']
-
+        num_videos = st.number_input('Enter the number of videos to display', min_value=1, max_value=5, value=5)
         for channel_id in CHANNEL_IDS:
-            latest_videos = get_latest_videos(DEVELOPER_KEY, channel_id)
+            latest_videos = get_latest_videos(DEVELOPER_KEY, channel_id, max_results=num_videos)
             if latest_videos:
                 print(f"\nLatest Videos for Channel {channel_id}:")
                 for video in latest_videos:
