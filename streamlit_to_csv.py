@@ -215,7 +215,10 @@ def scrape_article_info(url):
         article_name = article_name_element[0].text.strip()
 
         # Extract article date
-        time_element = driver.find_element(By.XPATH, "//time[@datetime]")
+        # time_element = driver.find_element(By.XPATH, "//time[@datetime]")
+        wait = WebDriverWait(driver, 10)  # Adjust the timeout as needed
+        time_element = wait.until(EC.presence_of_element_located((By.XPATH, "//time[@datetime]")))
+
         article_date = time_element.text.strip()
 
         # Extract image URL
@@ -549,8 +552,7 @@ def run_tab2():
     third_containers = soup.find_all('h3', class_="font-medium mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
     article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
 
-    total_articles_displayed = 0  # Track the total number of articles displayed
-
+    total_articles_displayed = 0  
     for fisrt in first_containers:
         if total_articles_displayed >= num_articles:
             break
@@ -991,7 +993,6 @@ def run_tab8():
                 scrape_and_display_article(full_url)
 
         driver.quit()
-
 
 def run_tab9():
     st.subheader("Tab 9: Coin Telegraph")
