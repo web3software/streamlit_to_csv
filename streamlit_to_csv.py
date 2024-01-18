@@ -218,7 +218,6 @@ def scrape_article_info(url):
         # time_element = driver.find_element(By.XPATH, "//time[@datetime]")
         wait = WebDriverWait(driver, 10)  # Adjust the timeout as needed
         time_element = wait.until(EC.presence_of_element_located((By.XPATH, "//time[@datetime]")))
-
         article_date = time_element.text.strip()
 
         # Extract image URL
@@ -343,8 +342,12 @@ def fetch_video_details(video_url, developer_key, channel_id):
         st.write(f"Published At: {yt.publish_date}")
         st.write(f"Duration: {yt.length} seconds")
         st.write(f"Views: {yt.views}")
-        # st.subheader("Subtitles")
+        st.subheader("Subtitles")
         # st.write(subtitles)
+        if subtitles:
+            st.write(subtitles[:200])
+            st.write("...")
+            st.write(subtitles[-200:])
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -552,7 +555,8 @@ def run_tab2():
     third_containers = soup.find_all('h3', class_="font-medium mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
     article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
 
-    total_articles_displayed = 0  
+    total_articles_displayed = 0  # Track the total number of articles displayed
+
     for fisrt in first_containers:
         if total_articles_displayed >= num_articles:
             break
@@ -993,6 +997,7 @@ def run_tab8():
                 scrape_and_display_article(full_url)
 
         driver.quit()
+
 
 def run_tab9():
     st.subheader("Tab 9: Coin Telegraph")
