@@ -342,7 +342,7 @@ def fetch_video_details(video_url, developer_key, channel_id):
         st.write(f"Published At: {yt.publish_date}")
         st.write(f"Duration: {yt.length} seconds")
         st.write(f"Views: {yt.views}")
-        st.subheader("Subtitles")
+        st.subheader("Transcript")
         # st.write(subtitles)
         if subtitles:
             st.write(subtitles[:200])
@@ -406,6 +406,35 @@ def scrape_and_display_article(url):
                 st.markdown(f'{p_text}\n\n')
     else:
         st.write('Article Name not found. Moving to the next article.\n')
+
+
+def calculate_start_time(minutes):
+    time_window = timedelta(minutes=minutes)
+    current_time = datetime.utcnow()
+    start_time = current_time - time_window
+    return start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def build_query_params(source, minutes):
+    return {
+        'query': f'from:{source}',
+        'tweet.fields': 'text,created_at',
+        'start_time': calculate_start_time(minutes),
+        'max_results': '100'
+    }
+
+def bearer_oauth(r):
+    bearer_token = os.getenv("bearer_token")
+    r.headers["Authorization"] = f"Bearer {bearer_token}"
+    r.headers["User-Agent"] = "v2RecentSearchPython"
+    return r
+
+def connect_to_endpoint(url, params):
+    response = requests.get(url, auth=bearer_oauth, params=params)
+    print(response.status_code)
+    if response.status_code != 200:
+        raise Exception(response.status_code, response.text)
+    return response.json()
 
 # Function to run code for Tab 1
 # def run_tab1():
@@ -1072,11 +1101,44 @@ def run_tab9():
             if i == num_articles - 1:
                 break
 
+def run_tab10():
+    st.title("Twitter Scraper with Streamlit")
+
+    # Get user input for the number of minutes
+    minutes = st.number_input("Enter the number of minutes to scrape tweets", min_value=1, value=30)
+
+    
+
+    search_url = "https://api.twitter.com/2/tweets/search/recent"
+    sources = ['0xHustlepedia', 'ZssBecker', 'coinbureau', 'MichaelSuppo', 'EllioTrades']
+
+    for source in sources:
+        st.header(f"Scraping tweets from {source}\n{'-'*30}")
+
+        query_params = build_query_params(source, minutes)
+
+        # Make request for the current source
+        json_response = connect_to_endpoint(search_url, query_params)
+
+        if 'data' in json_response:
+            for tweet in json_response['data']:
+                created_at = tweet.get('created_at', 'Timestamp not available')
+                text = tweet.get('text', 'Text not available')
+
+                st.write(f"Created At: {created_at}")
+                st.write(f"Text: {text}")
+                st.write("-" * 30)
+        else:
+            st.write(f"No tweets found for {source} in the last {minutes} minutes.")
+
+        st.write('\n')
+
+
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Twitter"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1097,3 +1159,5 @@ elif selected_tab == "Coin Desk Finance":
     run_tab8()
 elif selected_tab == "Coin Telegraph":
     run_tab9()
+elif selected_tab == "Twitter":
+    run_tab10()
