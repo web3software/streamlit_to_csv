@@ -17,6 +17,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 import json
+import psycopg2
+from datetime import datetime, timedelta, timezone
 
 
 load_dotenv()
@@ -41,7 +43,7 @@ with open(temp_key_file_path, "w") as key_file:
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_key_file_path
 
 access_key = st.secrets['discord_authorization_key']
-# access_key = os.getenv('discord_authorization_key')
+#access_key = os.getenv('discord_authorization_key')
 # access_key = st.secrets['discord_authorization_key']
 
 @st.cache_resource(show_spinner=False)
@@ -174,6 +176,28 @@ def download_data(minutes):
 
         df = pd.DataFrame(data)
         return df
+    
+def fetch_data_from_database(minutes):
+    with st.spinner(f"Fetching data for the last {minutes} minutes from the database..."):
+        # db_connection_string = os.getenv("DATABASE_URL")
+        db_connection_string = st.secrets["DATABASE_URL"]
+        sql_query = f"SELECT * FROM discord_data WHERE time_stamp > NOW() - INTERVAL '{minutes} minutes'"
+
+        try:
+            conn = psycopg2.connect(db_connection_string)
+
+            df_database = pd.read_sql_query(sql_query, conn)
+
+            return df_database
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return pd.DataFrame()
+
+        finally:
+            if conn:
+                conn.close()
+    
 
 # def scrape_article_info(url):
 
@@ -262,26 +286,6 @@ def get_channel_info(api_key, channel_id):
         print(f"An error occurred: {e}")
         return None
 
-# def get_latest_videos(api_key, channel_id, max_results=5):
-#     api_service_name = "youtube"
-#     api_version = "v3"
-
-#     youtube = googleapiclient.discovery.build(api_service_name, api_version, developerKey=api_key)
-
-#     request = youtube.search().list(
-#         part="snippet",
-#         channelId=channel_id,
-#         order="date",
-#         type="video",
-#         maxResults=max_results
-#     )
-
-#     try:
-#         response = request.execute()
-#         return response.get("items", [])
-#     except Exception as e:
-#         print(f"An error occurred: {e}")
-#         return []
 
 def get_latest_videos(api_key, channel_id, max_results=5):
     api_service_name = "youtube"
@@ -342,7 +346,7 @@ def fetch_video_details(video_url, developer_key, channel_id):
         st.write(f"Published At: {yt.publish_date}")
         st.write(f"Duration: {yt.length} seconds")
         st.write(f"Views: {yt.views}")
-        st.subheader("Transcript")
+        st.subheader("Subtitles")
         # st.write(subtitles)
         if subtitles:
             st.write(subtitles[:200])
@@ -407,40 +411,13 @@ def scrape_and_display_article(url):
     else:
         st.write('Article Name not found. Moving to the next article.\n')
 
-
-def calculate_start_time(minutes):
-    time_window = timedelta(minutes=minutes)
-    current_time = datetime.utcnow()
-    start_time = current_time - time_window
-    return start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def build_query_params(source, minutes):
-    return {
-        'query': f'from:{source}',
-        'tweet.fields': 'text,created_at',
-        'start_time': calculate_start_time(minutes),
-        'max_results': '100'
-    }
-
-def bearer_oauth(r):
-    bearer_token = os.getenv("bearer_token")
-    r.headers["Authorization"] = f"Bearer {bearer_token}"
-    r.headers["User-Agent"] = "v2RecentSearchPython"
-    return r
-
-def connect_to_endpoint(url, params):
-    response = requests.get(url, auth=bearer_oauth, params=params)
-    print(response.status_code)
-    if response.status_code != 200:
-        raise Exception(response.status_code, response.text)
-    return response.json()
-
 # Function to run code for Tab 1
+
 # def run_tab1():
-#     st.subheader("Tab 1: Current Script")
+#     st.subheader("Tab 1: Discord Data Scraper")
+#     minutes = st.number_input("Enter the number of minutes to retrieve data:", value=30, min_value=1)
 #     if st.button("Download Data"):
-#         df = download_data()
+#         df = download_data(minutes)
 #         st.write("Downloaded data:")
 #         st.write(df)
 
@@ -448,130 +425,35 @@ def connect_to_endpoint(url, params):
 #         excel_filename = "discord_data.xlsx"
 #         df.to_excel(excel_filename, index=False)
 #         st.success(f"Data saved to {excel_filename}")
-def run_tab1():
-    st.subheader("Tab 1: Discord Data Scraper")
-    minutes = st.number_input("Enter the number of minutes to retrieve data:", value=30, min_value=1)
-    if st.button("Download Data"):
-        df = download_data(minutes)
-        st.write("Downloaded data:")
-        st.write(df)
-
-        # Save data to Excel
-        excel_filename = "discord_data.xlsx"
-        df.to_excel(excel_filename, index=False)
-        st.success(f"Data saved to {excel_filename}")
-
-
-# Function to run code for Tab 2
-# def run_tab2():
-    # st.title("Article Information")
-
-    # base_url = 'https://decrypt.co/news'
-    # response = requests.get(base_url)
-    # soup = BeautifulSoup(response.text, 'html.parser')
-    # article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
-    # for container in article_containers:
-    #     link = container.find('a', class_='linkbox__overlay')
-    #     if link:
-    #         href = link.get('href')
-    #         full_url = f"https://decrypt.co/{href}" 
-
-    #         article_name, article_date, img_url, article_content = scrape_article_info(full_url)
-
-    #         # Display article information in a tabular form
-    #         st.write(f"## {article_name}")
-    #         st.write(f"**Date:** {article_date}")
-    #         st.image(img_url, caption="Image", use_column_width=True)
-    #         st.write("### Article Content:")
-    #         st.write(article_content)
-
-    #         st.markdown("---")  # Add a horizontal line between articles
-
-# def run_tab2():
-#     st.title("Article Information")
-#     #num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
-
-#     base_url = 'https://decrypt.co/news'
-#     response = requests.get(base_url)
-#     soup = BeautifulSoup(response.text, 'html.parser')
-#     first_containers = soup.find_all('div', class_='mt-2 md:col-span-4 md:mt-0')
-#     second_containers = soup.find_all('h3', class_="font-medium xl:font-normal mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
-#     third_containers = soup.find_all('h3', class_="font-medium mt-1 font-akzidenz-grotesk text-black gg-dark:text-neutral-100 gg-dark:font-poppins scene:font-itc-avant-garde-gothic-pro scene:font-medium scene:mt-2 degen-alley-dark:text-white text-base leading-4.5 xl:text-xl xl:leading-6")
-#     article_containers = soup.find_all('div', class_='mb-5 pb-5 last-of-type:mb-0')
-
-#     for fisrt in first_containers:
-#         first_links = fisrt.find('a', class_='linkbox__overlay')
-#         if first_links:
-#             hrefs = first_links.get('href')
-#             full_url = f"https://decrypt.co{hrefs}"
-
-#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
-
-#             # Display article information in a tabular form
-#             st.write(f"##. {article_name}")
-#             st.write(f"**Date:** {article_date}")
-#             st.image(img_url, caption="Image", use_column_width=True)
-#             st.write("### Article Content:")
-#             st.write(article_content)
-
-#             st.markdown("---") 
-
-#     for second in second_containers:
-#         second_links = second.find('a', class_="linkbox__overlay")
-#         if second_links:
-#             hrefs2 = second_links.get('href')
-#             full_url = f"https://decrypt.co{hrefs2}"
-
-#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
-
-#             # Display article information in a tabular form
-#             st.write(f"##. {article_name}")
-#             st.write(f"**Date:** {article_date}")
-#             st.image(img_url, caption="Image", use_column_width=True)
-#             st.write("### Article Content:")
-#             st.write(article_content)
-
-#             st.markdown("---") 
-
-#     for third in third_containers:
-#         third_links = third.find('a', class_="linkbox__overlay")
-#         if third_links:
-#             hrefs3 = third_links.get('href')
-#             full_url = f"https://decrypt.co{hrefs3}"
-
-#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
-
-#             # Display article information in a tabular form
-#             st.write(f"##. {article_name}")
-#             st.write(f"**Date:** {article_date}")
-#             st.image(img_url, caption="Image", use_column_width=True)
-#             st.write("### Article Content:")
-#             st.write(article_content)
-
-#             st.markdown("---") 
-
-
- 
-#     for container in article_containers:
-#         link = container.find('a', class_='linkbox__overlay')
-#         if link:
-#             href = link.get('href')
-#             full_url = f"https://decrypt.co/{href}"
-
-#             article_name, article_date, img_url, article_content = scrape_article_info(full_url)
-
-            
-
-#             # Display article information in a tabular form
-#             st.write(f"##. {article_name}")
-#             st.write(f"**Date:** {article_date}")
-#             st.image(img_url, caption="Image", use_column_width=True)
-#             st.write("### Article Content:")
-#             st.write(article_content)
-
-#             st.markdown("---") 
         
 
+def run_tab1():
+    st.subheader("Tab 1: Discord Data Scraper")
+
+    # Button to download data from Discord channels
+    minutes_download = st.number_input("Enter the number of minutes to retrieve data from Discord channels:", value=30, min_value=1)
+    if st.button("Download Data from Discord Channels"):
+        df_download = download_data(minutes_download)
+        st.write("Downloaded data from Discord channels:")
+        st.write(df_download)
+
+        # Save data to Excel
+        excel_filename_download = "discord_data_download.xlsx"
+        df_download.to_excel(excel_filename_download, index=False)
+        st.success(f"Data saved to {excel_filename_download}")
+
+    # Button to fetch data from the database
+    minutes_database = st.number_input("Enter the number of minutes to retrieve data from the database:", value=30, min_value=1)
+    if st.button("Fetch Data from Database"):
+        df_database = fetch_data_from_database(minutes_database)
+        st.write("Fetched data from the database:")
+        st.write(df_database)
+
+        # Save data to Excel
+        excel_filename_db = "discord_data_database.xlsx"
+        df_database.to_excel(excel_filename_db, index=False)
+        st.success(f"Data fetched from the database and saved to {excel_filename_db}")
+        
 def run_tab2():
     st.title("Article Information")
     num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
@@ -671,80 +553,6 @@ def run_tab2():
             total_articles_displayed += 1
 
 
-# def run_tab3():
-#     st.subheader("Tab 3: Other Code")
-#     with st.spinner("Scrapping data..."):
-#         base_url = 'https://www.coindesk.com/tag/news/'
-#         response = requests.get(base_url)
-#         soup = BeautifulSoup(response.text, 'html.parser')
-
-#         h6_tags = soup.find_all('h6', class_="typography__StyledTypography-sc-owin6q-0 diMXjy")
-
-#         for h6_tag in h6_tags:
-#             link = h6_tag.find('a', class_="card-title")
-
-#             if link:
-#                 href = link.get('href')
-#                 full_url = f'https://www.coindesk.com/{href}'
-#                 response = requests.get(full_url)
-#                 article_soup = BeautifulSoup(response.text, 'html.parser')
-
-#                 article_name_element = article_soup.find('h1', class_="typography__StyledTypography-sc-owin6q-0 bSOJsQ")
-
-#                 if article_name_element:
-#                     article_name = article_name_element.text.strip()
-#                     st.write(f'# Article Name: {article_name}')
-
-#                     date_time_div = article_soup.find('div', class_="at-created label-with-icon")
-#                     if date_time_div:
-#                         date_time_span = date_time_div.find('span', class_="typography__StyledTypography-sc-owin6q-0 hcIsFR")
-#                         date_time_text = date_time_span.text.strip()
-#                         st.write(f'Date and Time: {date_time_text}')
-#                     else:
-#                         alt_date_time_div = article_soup.find('div', class_="align-right")
-#                         alt_date_time_span = alt_date_time_div.find('span', class_="typography__StyledTypography-sc-owin6q-0 hcIsFR")
-#                         alt_date_time_text = alt_date_time_span.text.strip() if alt_date_time_span else 'Date and Time not found'
-#                         st.write(f'Date and Time (Alternative): {alt_date_time_text}')
-
-#                     main_div = article_soup.find('div', class_='featured-imagestyles__FeaturedImageWrapper-sc-ojmof1-0 jGviVP at-rail-aligner at-rail-aligner-fi')
-
-#                     if main_div:
-#                         picture_tag = main_div.find('picture', class_='responsive-picturestyles__ResponsivePictureWrapper-sc-1urqrom-0 iLCXlQ')
-
-#                         if picture_tag:
-#                             img_tag = picture_tag.find('img')
-#                             image_url = img_tag['src'] if img_tag else 'Image not found'
-#                             st.image(image_url, caption='Article Image', use_column_width=True)
-#                         else:
-#                             st.write('Image not found within main div.')
-#                     else:
-#                         main_div2 = article_soup.find('div', class_='featured-imagestyles__FeaturedImageWrapper-sc-ojmof1-0 jGviVP featured-media featured-media-fi')
-#                         if main_div2:
-#                             picture_tag2 = main_div2.find('picture', class_='responsive-picturestyles__ResponsivePictureWrapper-sc-1urqrom-0 iLCXlQ')
-
-#                             if picture_tag2:
-#                                 img_tag2 = picture_tag2.find('img')
-#                                 image_url2 = img_tag2['src'] if img_tag2 else 'Image not found'
-#                                 st.image(image_url2, caption='Article Image', use_column_width=True)
-#                             else:
-#                                 st.write('Image not found within picture tag.')
-#                         else:
-#                             st.write('Image not in article.')
-
-#                     divs = article_soup.find_all('div', class_=["common-textstyles__StyledWrapper-sc-18pd49k-0 eSbCkN"])
-#                     st.header('Article Content')
-#                     for div in divs:
-#                         p_tags = div.find_all('p')
-#                         for p_tag in p_tags:
-#                             p_text = p_tag.text.strip()
-#                             st.write(p_text)
-#                 else:
-#                     st.write('Article Name not found. Moving to the next article.\n')
-
-#                 # Add a separator between articles
-#                 st.markdown("---")
-
-# Function code for the third tab...
 def run_tab3():
     st.subheader("Tab 3: Coin Desk News")
     num_articles = st.number_input("Enter the number of articles to retrieve:", value=1, min_value=1, step=1)
@@ -820,7 +628,7 @@ def run_tab3():
                 # Add a separator between articles
                 st.markdown("---")
 
-# Function code for the second tab...
+
 def run_tab4():
     st.subheader("Tab 4: Youtube")
     with st.spinner("Scrapping data..."):
@@ -838,6 +646,7 @@ def run_tab4():
                     fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
             else:
                 print(f"No videos found for Channel {channel_id}.")
+    os.remove(temp_key_file_path)
 
         # for channel_id in CHANNEL_IDS:
         #     latest_videos = get_latest_videos(DEVELOPER_KEY, channel_id)
@@ -849,7 +658,7 @@ def run_tab4():
         #             fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
         #     else:
         #         print(f"No videos found for Channel {channel_id}.")
-    os.remove(temp_key_file_path)
+    #os.remove(temp_key_file_path)
 
 def run_tab5():
     st.subheader("Tab 5: News BTC News")
@@ -1102,43 +911,67 @@ def run_tab9():
                 break
 
 def run_tab10():
-    st.title("Twitter Scraper with Streamlit")
+    # database_url = os.getenv('DATABASE_URL')
+    database_url = st.secrets['DATABASE_URL']
 
-    # Get user input for the number of minutes
-    minutes = st.number_input("Enter the number of minutes to scrape tweets", min_value=1, value=30)
 
-    
+    # Assuming df_database is your existing DataFrame
+    df_database = pd.DataFrame()
 
-    search_url = "https://api.twitter.com/2/tweets/search/recent"
-    sources = ['0xHustlepedia', 'ZssBecker', 'coinbureau', 'MichaelSuppo', 'EllioTrades']
+    if st.button("Fetch Data from News"):
+        try:
+            # Connect to the database
+            connection = psycopg2.connect(database_url, sslmode='require')
 
-    for source in sources:
-        st.header(f"Scraping tweets from {source}\n{'-'*30}")
+            # Execute SQL query to fetch data
+            query = "SELECT * FROM news_data WHERE data_source = 'News BTC' LIMIT 5"
+            df_database = pd.read_sql(query, connection)
 
-        query_params = build_query_params(source, minutes)
+            # Close the database connection
+            connection.close()
 
-        # Make request for the current source
-        json_response = connect_to_endpoint(search_url, query_params)
+            # Display the fetched data
+            st.write("Fetched data from the database:")
+            st.write(df_database)
 
-        if 'data' in json_response:
-            for tweet in json_response['data']:
-                created_at = tweet.get('created_at', 'Timestamp not available')
-                text = tweet.get('text', 'Text not available')
+            # Save data to Excel
+            excel_filename_db = "news_data_database.xlsx"
+            df_database.to_excel(excel_filename_db, index=False)
+            st.success(f"Data fetched from the database and saved to {excel_filename_db}")
 
-                st.write(f"Created At: {created_at}")
-                st.write(f"Text: {text}")
-                st.write("-" * 30)
-        else:
-            st.write(f"No tweets found for {source} in the last {minutes} minutes.")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
-        st.write('\n')
+    if st.button("Fetch Data from Youtube"):
+        try:
+            # Connect to the database
+            connection = psycopg2.connect(database_url, sslmode='require')
+
+            # Execute SQL query to fetch data
+            query = "SELECT * FROM youtube_data LIMIT 5"
+            df_database = pd.read_sql(query, connection)
+
+            # Close the database connection
+            connection.close()
+
+            # Display the fetched data
+            st.write("Fetched data from the database:")
+            st.write(df_database)
+
+            # Save data to Excel
+            excel_filename_db = "youtube_data_database.xlsx"
+            df_database.to_excel(excel_filename_db, index=False)
+            st.success(f"Data fetched from the database and saved to {excel_filename_db}")
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Twitter"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1159,5 +992,5 @@ elif selected_tab == "Coin Desk Finance":
     run_tab8()
 elif selected_tab == "Coin Telegraph":
     run_tab9()
-elif selected_tab == "Twitter":
+elif selected_tab == "Data From Database":
     run_tab10()
