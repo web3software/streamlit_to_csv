@@ -43,7 +43,7 @@ with open(temp_key_file_path, "w") as key_file:
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_key_file_path
 
 access_key = st.secrets['discord_authorization_key']
-#access_key = os.getenv('discord_authorization_key')
+# access_key = os.getenv('discord_authorization_key')
 # access_key = st.secrets['discord_authorization_key']
 
 @st.cache_resource(show_spinner=False)
@@ -442,17 +442,17 @@ def run_tab1():
         df_download.to_excel(excel_filename_download, index=False)
         st.success(f"Data saved to {excel_filename_download}")
 
-    # Button to fetch data from the database
-    minutes_database = st.number_input("Enter the number of minutes to retrieve data from the database:", value=30, min_value=1)
-    if st.button("Fetch Data from Database"):
-        df_database = fetch_data_from_database(minutes_database)
-        st.write("Fetched data from the database:")
-        st.write(df_database)
+    # # Button to fetch data from the database
+    # minutes_database = st.number_input("Enter the number of minutes to retrieve data from the database:", value=30, min_value=1)
+    # if st.button("Fetch Data from Database"):
+    #     df_database = fetch_data_from_database(minutes_database)
+    #     st.write("Fetched data from the database:")
+    #     st.write(df_database)
 
-        # Save data to Excel
-        excel_filename_db = "discord_data_database.xlsx"
-        df_database.to_excel(excel_filename_db, index=False)
-        st.success(f"Data fetched from the database and saved to {excel_filename_db}")
+    #     # Save data to Excel
+    #     excel_filename_db = "discord_data_database.xlsx"
+    #     df_database.to_excel(excel_filename_db, index=False)
+    #     st.success(f"Data fetched from the database and saved to {excel_filename_db}")
         
 def run_tab2():
     st.title("Article Information")
@@ -911,30 +911,33 @@ def run_tab9():
                 break
 
 def run_tab10():
-    # database_url = os.getenv('DATABASE_URL')
+    minutes_database = st.number_input("Enter the number of minutes to retrieve data from the database:", value=30, min_value=1)
+    if st.button("Fetch Data from Discord"):
+        df_database = fetch_data_from_database(minutes_database)
+        st.write("Fetched data from the database:")
+        st.write(df_database)
+
+        excel_filename_db = "discord_data_database.xlsx"
+        df_database.to_excel(excel_filename_db, index=False)
+        st.success(f"Data fetched from the database and saved to {excel_filename_db}")
+
     database_url = st.secrets['DATABASE_URL']
+    # database_url = os.getenv("DATABASE_URL")
 
-
-    # Assuming df_database is your existing DataFrame
     df_database = pd.DataFrame()
 
     if st.button("Fetch Data from News"):
         try:
-            # Connect to the database
             connection = psycopg2.connect(database_url, sslmode='require')
 
-            # Execute SQL query to fetch data
             query = "SELECT * FROM news_data WHERE data_source = 'News BTC' LIMIT 5"
             df_database = pd.read_sql(query, connection)
 
-            # Close the database connection
             connection.close()
 
-            # Display the fetched data
             st.write("Fetched data from the database:")
             st.write(df_database)
 
-            # Save data to Excel
             excel_filename_db = "news_data_database.xlsx"
             df_database.to_excel(excel_filename_db, index=False)
             st.success(f"Data fetched from the database and saved to {excel_filename_db}")
@@ -944,21 +947,16 @@ def run_tab10():
 
     if st.button("Fetch Data from Youtube"):
         try:
-            # Connect to the database
             connection = psycopg2.connect(database_url, sslmode='require')
 
-            # Execute SQL query to fetch data
             query = "SELECT * FROM youtube_data LIMIT 5"
             df_database = pd.read_sql(query, connection)
 
-            # Close the database connection
             connection.close()
 
-            # Display the fetched data
             st.write("Fetched data from the database:")
             st.write(df_database)
 
-            # Save data to Excel
             excel_filename_db = "youtube_data_database.xlsx"
             df_database.to_excel(excel_filename_db, index=False)
             st.success(f"Data fetched from the database and saved to {excel_filename_db}")
