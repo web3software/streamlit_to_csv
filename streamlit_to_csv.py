@@ -346,7 +346,7 @@ def fetch_video_details(video_url, developer_key, channel_id):
         st.write(f"Published At: {yt.publish_date}")
         st.write(f"Duration: {yt.length} seconds")
         st.write(f"Views: {yt.views}")
-        st.subheader("Subtitles")
+        st.subheader("Transcript")
         # st.write(subtitles)
         if subtitles:
             st.write(subtitles[:200])
