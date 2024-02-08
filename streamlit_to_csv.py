@@ -19,6 +19,7 @@ from selenium.common.exceptions import NoSuchElementException
 import json
 import psycopg2
 from datetime import datetime, timedelta, timezone
+import matplotlib.pyplot as plt
 
 
 load_dotenv()
@@ -410,6 +411,32 @@ def scrape_and_display_article(url):
                 st.markdown(f'{p_text}\n\n')
     else:
         st.write('Article Name not found. Moving to the next article.\n')
+
+def connect_to_database():
+    # DATABASE_URL = os.getenv("DATABASE_URL")
+    DATABASE_URL = st.secrets["DATABASE_URL"]
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    return conn
+
+def get_tweets_last_day(conn):
+    yesterday = datetime.now() - timedelta(days=1)
+    yesterday_str = yesterday.strftime("%Y-%m-%d")
+    query = f"SELECT * FROM twitter_data WHERE time_stamp >= '{yesterday_str}'"
+    cur = conn.cursor()
+    cur.execute(query)
+    return cur.fetchall(), yesterday_str
+
+def calculate_stats(tweets):
+    stats = {}
+    for tweet in tweets:
+        channel = tweet[1]  # Assuming the channel is stored in the second column
+        print(tweet[1])
+        if channel in stats:
+            stats[channel] += 1
+        else:
+            stats[channel] = 1
+    return stats
+
 
 # Function to run code for Tab 1
 
@@ -964,12 +991,37 @@ def run_tab10():
         except Exception as e:
             st.error(f"An error occurred: {e}")
 
+def run_tab11():
+    st.title('Tweet Stats Per Channel')
+
+    conn = connect_to_database()
+
+    tweets, yesterday_str = get_tweets_last_day(conn)  
+
+    stats = calculate_stats(tweets)
+
+    st.write(f'**Stats for {yesterday_str}:**')
+    for channel, count in stats.items():
+        st.write(f"- {channel}: {count} tweets")
+
+    fig, ax = plt.subplots()
+    ax.bar(stats.keys(), stats.values())
+    ax.set_xlabel('Channels')
+    ax.set_ylabel('Number of Tweets')
+    ax.set_title(f"Tweet Stats Per Channel {yesterday_str}")
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+    conn.close()
+
+
+
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -992,3 +1044,5 @@ elif selected_tab == "Coin Telegraph":
     run_tab9()
 elif selected_tab == "Data From Database":
     run_tab10()
+elif selected_tab == "Twitter Stats":
+    run_tab11()
