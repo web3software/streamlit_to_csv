@@ -1023,14 +1023,36 @@ def run_tab11():
 
     conn.close()
 
+def fetch_data():
+    # conn_string = os.getenv("DATABASE_URL")
+    conn_string = st.secrets["DATABASE_URL"]
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    query = "SELECT * FROM coinmarket_historical_data"
+    cur.execute(query)
+    data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return data
 
+def run_tab12():
+    if st.button("Fetch Coin Market Cap Data"):
+        with st.spinner("Fetching data..."):
+            st.title("Historical Data")
+            data = fetch_data()
+
+            df = pd.DataFrame(data, columns=["id", "timestamp", "symbol", "percent_change_1h", "percent_change_24h", "percent_change_7d", "price", "volume_24h", "market_cap", "total_supply", "circulating_supply"])
+
+            st.dataframe(df)
+    
+    
 
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1055,3 +1077,5 @@ elif selected_tab == "Data From Database":
     run_tab10()
 elif selected_tab == "Twitter Stats":
     run_tab11()
+elif selected_tab == "Coin Market Cap Data":
+    run_tab12()
