@@ -823,12 +823,12 @@ def run_tab7():
         driver.get(base_url)
 
         wait = WebDriverWait(driver, 30)  # Increased timeout
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'h5.typography__StyledTypography-sc-owin6q-0.keiOrg')))
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'h5.typography__StyledTypography-sc-owin6q-0 jSgbKt')))
 
         page_source = driver.page_source
 
         soup = BeautifulSoup(page_source, 'html.parser')
-        h5_tags = soup.find_all('h5', class_="typography__StyledTypography-sc-owin6q-0 keiOrg")
+        h5_tags = soup.find_all('h5', class_="typography__StyledTypography-sc-owin6q-0 jSgbKt")
         for i, container in enumerate(h5_tags[:num_articles]):
             link = container.find('a', class_="card-title")
             if link:
