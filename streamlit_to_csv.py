@@ -198,6 +198,8 @@ def fetch_data_from_database(minutes):
         finally:
             if conn:
                 conn.close()
+
+                
     
 
 # def scrape_article_info(url):
@@ -1011,6 +1013,13 @@ def run_tab11():
     ax.set_title(f"Tweet Stats Per Channel {yesterday_str}")
     plt.xticks(rotation=45)
     st.pyplot(fig)
+
+    if st.button("Fetch Data from Twitter"):
+        df_tweets = pd.DataFrame(tweets, columns=['id', 'data_source', 'tweet_text', 'time_stamp'])
+
+        # Display the DataFrame in Streamlit
+        st.title(f"Data of Tweets for {yesterday_str}")
+        st.dataframe(df_tweets)
 
     conn.close()
 
