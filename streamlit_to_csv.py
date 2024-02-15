@@ -20,6 +20,7 @@ import json
 import psycopg2
 from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 
 
 load_dotenv()
@@ -454,7 +455,40 @@ def calculate_stats(tweets):
 #         excel_filename = "discord_data.xlsx"
 #         df.to_excel(excel_filename, index=False)
 #         st.success(f"Data saved to {excel_filename}")
-        
+
+def fetch_data_coin(symbol):
+    # conn_string = os.getenv("DATABASE_URL")
+    conn_string = st.secrets["DATABASE_URL"]
+    conn = psycopg2.connect(conn_string)
+    cursor = conn.cursor()
+    query = f"SELECT timestamp, price, circulating_supply FROM coinmarket_historical_data WHERE symbol = '{symbol}'"
+    cursor.execute(query)
+    data = cursor.fetchall()
+    columns = ["timestamp", "price", "circulating_supply"]
+    df = pd.DataFrame(data, columns=columns)
+    conn.close()
+    return df 
+
+def plot_line_graph(df, frequency):
+    if frequency == 'Daily':
+        df_resampled = df.set_index('timestamp').resample('D').mean().reset_index()
+    elif frequency == 'Monthly':
+        df_resampled = df.set_index('timestamp').resample('M').mean().reset_index()
+    else:
+        st.error("Invalid frequency selection!")
+        return
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['price'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Price'))
+    fig.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['circulating_supply'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Circulating Supply'))
+    fig.update_layout(title='Price and Circulating Supply Trend',
+                      xaxis_title='Date',
+                      yaxis_title='Value')
+    fig.update_traces(hoverinfo='text+name', text=df_resampled['timestamp'].dt.strftime('%Y-%m-%d') + '<br>Price: ' + df_resampled['price'].astype(str) + '<br>Circulating Supply: ' + df_resampled['circulating_supply'].astype(str))
+    st.plotly_chart(fig)
+
+
+
 
 def run_tab1():
     st.subheader("Tab 1: Discord Data Scraper")
@@ -1045,14 +1079,20 @@ def run_tab12():
 
             st.dataframe(df)
     
-    
+def run_tab13():
+    st.title('Cryptocurrency Price and Circulating Supply Visualization')
+    symbol = st.selectbox("Select Symbol", ["BTC", "ETH"])
+    frequency = st.radio("Select Frequency", ['Daily', 'Monthly'])
+    df = fetch_data_coin(symbol)
+    st.write(df)
+    plot_line_graph(df, frequency)    
 
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1079,3 +1119,5 @@ elif selected_tab == "Twitter Stats":
     run_tab11()
 elif selected_tab == "Coin Market Cap Data":
     run_tab12()
+elif selected_tab == "Coin Market Cap Graph":
+    run_tab13()
