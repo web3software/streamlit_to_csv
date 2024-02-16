@@ -480,12 +480,23 @@ def plot_line_graph(df, frequency):
     
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['price'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Price'))
-    fig.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['circulating_supply'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Circulating Supply'))
-    fig.update_layout(title='Price and Circulating Supply Trend',
+    # fig.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['circulating_supply'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Circulating Supply'))
+    fig.update_layout(title='Price Trend',
                       xaxis_title='Date',
-                      yaxis_title='Value')
-    fig.update_traces(hoverinfo='text+name', text=df_resampled['timestamp'].dt.strftime('%Y-%m-%d') + '<br>Price: ' + df_resampled['price'].astype(str) + '<br>Circulating Supply: ' + df_resampled['circulating_supply'].astype(str))
+                      yaxis_title='Value',
+                      xaxis=dict(rangeslider=dict(visible=True), type="date"))
+    fig.update_traces(hoverinfo='text+name', text=df_resampled['timestamp'].dt.strftime('%Y-%m-%d') + '<br>Price: ' + df_resampled['price'].astype(str))
     st.plotly_chart(fig)
+
+    fig1 = go.Figure()
+    # fig1.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['price'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Price'))
+    fig1.add_trace(go.Scatter(x=df_resampled['timestamp'], y=df_resampled['circulating_supply'].rolling(window=7, min_periods=1).mean(), mode='lines', name='Circulating Supply'))
+    fig1.update_layout(title='Circulating Supply Trend',
+                      xaxis_title='Date',
+                      yaxis_title='Value',
+                      xaxis=dict(rangeslider=dict(visible=True), type="date"))
+    fig1.update_traces(hoverinfo='text+name', text=df_resampled['timestamp'].dt.strftime('%Y-%m-%d') +'<br>Circulating Supply: ' + df_resampled['circulating_supply'].astype(str))
+    st.plotly_chart(fig1)
 
 
 
@@ -1075,24 +1086,46 @@ def run_tab12():
             st.title("Historical Data")
             data = fetch_data()
 
-            df = pd.DataFrame(data, columns=["id", "timestamp", "symbol", "percent_change_1h", "percent_change_24h", "percent_change_7d", "price", "volume_24h", "market_cap", "total_supply", "circulating_supply"])
+            df = pd.DataFrame(data, columns=["id", "timestamp", "symbol", "percent_change_1h", "percent_change_24h", "percent_change_7d", "price", "volume_24h", "market_cap", "total_supply", "circulating_supply", "percent_change_30d"])
 
             st.dataframe(df)
     
 def run_tab13():
     st.title('Cryptocurrency Price and Circulating Supply Visualization')
-    symbol = st.selectbox("Select Symbol", ["BTC", "ETH"])
+    symbol = st.selectbox("Select Symbol", ["IMX", "SAND"])
     frequency = st.radio("Select Frequency", ['Daily', 'Monthly'])
     df = fetch_data_coin(symbol)
     st.write(df)
     plot_line_graph(df, frequency)    
 
+def fetch_data_fundraising():
+    # conn_string = os.getenv("DATABASE_URL")
+    conn_string = st.secrets["DATABASE_URL"]
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    query = "SELECT * FROM fundraising_data"
+    cur.execute(query)
+    data = cur.fetchall()
+    cur.close()
+    conn.close()
+    return data
+
+def run_tab14():
+    if st.button("Fetch Crypto Fundraising Data"):
+        with st.spinner("Fetching data..."):
+            st.title("Crypto Fundraising Data")
+            data = fetch_data_fundraising()
+
+            df = pd.DataFrame(data, columns=["id", "project_name", "investor_names", "raised_date", "raised_amount"])
+
+            st.dataframe(df)
+    
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1121,3 +1154,5 @@ elif selected_tab == "Coin Market Cap Data":
     run_tab12()
 elif selected_tab == "Coin Market Cap Graph":
     run_tab13()
+elif selected_tab == "Coin Fundraising Data":
+    run_tab14()
