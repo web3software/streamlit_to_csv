@@ -1140,8 +1140,12 @@ def run_tab15():
     # Create SQLDatabase instance
     db = create_db_from_uri()
 
+    # openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_api_key = st.secrets["OPENAI_API_KEY"]
+
+
     # Create Langchain agent with OpenAI's GPT-3.5 model
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key='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')
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key=openai_api_key)
 
     # Create agent executor
     agent_executor = create_sql_agent(llm, db=db, agent_type="openai-tools", verbose=True)
