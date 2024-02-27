@@ -21,9 +21,13 @@ import psycopg2
 from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
+from langchain.agents import create_sql_agent
+from langchain.sql_database import SQLDatabase
+from langchain_openai import ChatOpenAI
 
 
 load_dotenv()
+
 service_key = {
   "type": st.secrets['type'],
   "project_id": st.secrets['project_id'],
@@ -1120,12 +1124,56 @@ def run_tab14():
 
             st.dataframe(df)
     
+def run_tab15():
+    
+    def create_db_from_uri():
+        db_url = "postgresql+psycopg2://ucjaqskr8p8id6:p9721c6bd1d7d7d97cf608c68650475c54c27e9366893af0c017b705e29210072@ec2-54-197-133-119.compute-1.amazonaws.com/de2vvbr4bsnbvt"
+        return SQLDatabase.from_uri(db_url)
+
+    # Initialize Streamlit app
+    st.title("Chat with Database")
+
+    # Initialize session state
+    if 'history' not in st.session_state:
+        st.session_state.history = []
+
+    # Create SQLDatabase instance
+    db = create_db_from_uri()
+
+    # Create Langchain agent with OpenAI's GPT-3.5 model
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0, openai_api_key='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')
+
+    # Create agent executor
+    agent_executor = create_sql_agent(llm, db=db, agent_type="openai-tools", verbose=True)
+
+    # Define function to execute user queries
+    def execute_query(query):
+        # Invoke agent executor with user query
+        response = agent_executor.invoke(query)
+        st.session_state.history.append({"query": query, "response": response})
+        return response
+
+    # Render user input field and execute button
+    user_query = st.text_input("Enter your query:")
+    if st.button("Execute"):
+        with st.spinner("Generating response..."):
+            response = execute_query(user_query)
+            st.write("Response:", response)
+
+    # Render response history session
+    st.subheader("Response History")
+    for i, item in enumerate(st.session_state.history):
+        st.write(f"{i + 1}. Query: {item['query']}")
+        st.write(f"   Response: {item['response']}")
+
+    
+
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1156,3 +1204,5 @@ elif selected_tab == "Coin Market Cap Graph":
     run_tab13()
 elif selected_tab == "Coin Fundraising Data":
     run_tab14()
+elif selected_tab == "Chat with Database":
+    run_tab15()
