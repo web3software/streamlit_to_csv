@@ -1170,6 +1170,169 @@ def run_tab15():
         st.write(f"{i + 1}. Query: {item['query']}")
         st.write(f"   Response: {item['response']}")
 
+def run_tab16():
+
+    def fetch_data(url):
+        response = requests.get(url)
+        data = response.json()
+        return data
+
+    # Fetching price data
+    def fetch_price_data():
+        url = "https://cryptorank.io/_next/data/gHi6rnLZy5v8KkhMnyVFD/en/price/gameswift.json?coinKey=gameswift"
+        data = fetch_data(url)
+        return data
+
+    # Fetching token sale data
+    def fetch_token_sale_data():
+        url = "https://cryptorank.io/_next/data/gHi6rnLZy5v8KkhMnyVFD/en/ico/gameswift.json?coinKey=gameswift"
+        data = fetch_data(url)
+        return data
+
+    # Fetching market data
+    def fetch_market_data():
+        url = "https://cryptorank.io/_next/data/gHi6rnLZy5v8KkhMnyVFD/en/price/gameswift/exchanges.json?coinKey=gameswift"
+        data = fetch_data(url)
+        return data
+
+    # Fetching vesting data
+    def fetch_vesting_data():
+        url = "https://cryptorank.io/_next/data/gHi6rnLZy5v8KkhMnyVFD/en/price/gameswift/vesting.json?coinKey=gameswift"
+        data = fetch_data(url)
+        return data
+
+    # Main function
+    
+    st.title("GameSwift Coin Data")
+
+    # Fetch price data
+    price_data = fetch_price_data()
+    st.header("Overview Data")
+    st.write("Coin Name:", price_data['pageProps']['coin']['name'])
+    st.write("Coin Price:", price_data['pageProps']['coin']['price']['USD'])
+    st.write("High Price:", price_data['pageProps']['coin']['histData']['high']['24H']['USD'])
+    st.write("Low Price:", price_data['pageProps']['coin']['histData']['low']['24H']['USD'])
+    st.write("ATH Market Cap:", price_data['pageProps']['priceStatistics']['athMarketCap'])
+    st.write("Max Supply:", price_data['pageProps']['priceStatistics']['maxSupply'])
+    st.write("Total Supply:", price_data['pageProps']['priceStatistics']['totalSupply'])
+    st.write("Circulating Supply:", price_data['pageProps']['priceStatistics']['availableSupply'])
+    st.write("Percentage of Max Supply:", price_data['pageProps']['priceStatistics']['availableSupplyPercent'])
+    st.write("Next Unlock:", price_data['pageProps']['priceStatistics']['nextUnlockTokens'])
+    st.write("Percentage of Next Unlock:", price_data['pageProps']['priceStatistics']['nextUnlockPercent'])
+    st.write("Trade Vol:", price_data['pageProps']['priceStatistics']['volume24h'])
+    st.write("Vol 24h/ MCap:", price_data['pageProps']['priceStatistics']['volume24hRatio'])
+    st.write("All Time High:", price_data['pageProps']['priceStatistics']['athPrice'])
+    st.write("All Time Low:", price_data['pageProps']['priceStatistics']['atlPrice'])
+    st.write("From ATH:", price_data['pageProps']['priceStatistics']['fromAthPrice'])
+    st.write("From ATL:", price_data['pageProps']['priceStatistics']['fromAtlPrice'])
+    st.write("IEO Price:", price_data['pageProps']['coin']['crowdsales'][0]['price']['USD'])
+    st.write("IEO Price Raise:", price_data['pageProps']['coin']['crowdsales'][0]['raise']['USD'])
+    st.write("ROI:", price_data['pageProps']['coin']['crowdsales'][0]['roi']['value'])
+    st.write("ROI Percent Change:", price_data['pageProps']['coin']['crowdsales'][0]['roi']['percentChange'])
+    st.write("ATH ROI:", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['value'])
+    st.write("ATH ROI Percent Change:", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['percentChange'])
+
+    # Fetch token sale data
+    token_sale_data = fetch_token_sale_data()
+    st.header("Token Sale Data")
+    for item in token_sale_data['pageProps']['coin']['icoData']['allocationChart']:
+        st.write("Title:", item['title'])
+        st.write("Percent:", item['percent'])
+        st.write()
+
+    st.header("Trending Token Sales")
+
+    for item in token_sale_data['pageProps']['fallbackDataTokenSales'][:4]:
+        st.write("Key:", item['key'])
+        st.write("Name:", item['name'])
+        st.write("Symbol:", item['symbol'])
+        st.write("Category:", item['category'])
+        st.write("Start Date:", item['round']['startDate'])
+        st.write("End Date:", item['round']['endDate'])
+        st.markdown("<hr>", unsafe_allow_html=True)
+
+
+    # Fetch market data
+    market_data = fetch_market_data()
+    st.header("Market Data")
+    tickers = market_data['pageProps']['tickers']
+    exchange_names = []
+    coin_names = []
+    highs = []
+    lows = []
+    open_prices = []
+    close_prices = []
+    bids = []
+    asks = []
+    base_volumes = []
+    usd_volumes = []
+    btc_volumes = []
+    changes = []
+    change_percents = []
+    spreads = []
+    exchange_percent_volumes = []
+
+    for ticker in tickers:
+        exchange_names.append(ticker['exchangeName'])
+        coin_names.append(ticker['coinName'])
+        highs.append(ticker['high'])
+        lows.append(ticker['low'])
+        open_prices.append(ticker['open'])
+        close_prices.append(ticker['close'])
+        bids.append(ticker['bid'])
+        asks.append(ticker['ask'])
+        base_volumes.append(ticker['baseVolume'])
+        usd_volumes.append(ticker['usdVolume'])
+        btc_volumes.append(ticker['btcVolume'])
+        changes.append(ticker.get('change', 'N/A'))
+        change_percents.append(ticker.get('changePercent', 'N/A'))
+        spreads.append(ticker['spread'])
+        exchange_percent_volumes.append(ticker['exchangePercentVolume'])
+
+    df = pd.DataFrame({
+        'Exchange Name': exchange_names,
+        'Coin Name': coin_names,
+        'High': highs,
+        'Low': lows,
+        'Open': open_prices,
+        'Close': close_prices,
+        'Bid': bids,
+        'Ask': asks,
+        'Base Volume': base_volumes,
+        'USD Volume': usd_volumes,
+        'BTC Volume': btc_volumes,
+        'Change': changes,
+        'Change Percent': change_percents,
+        'Spread': spreads,
+        'Exchange Percent Volume': exchange_percent_volumes
+    })
+
+    st.write(df)
+
+
+    # Fetch vesting data
+    vesting_data = fetch_vesting_data()
+    st.header("Vesting Data")
+    allocations = vesting_data['pageProps']['vestingInfo']['allocations']
+    allocation_data = []
+    for allocation in allocations:
+        name = allocation['name']
+        token_percent = allocation['tokens_percent']
+        token = allocation['tokens']
+        batches = allocation.get('batches', [])
+        for batch in batches:
+            date = batch.get('date')
+            unlock_percent = batch.get('unlock_percent')
+            allocation_data.append({
+                'Allocation Name': name,
+                'Token Percent': token_percent,
+                'Tokens': token,
+                'Batch Date': date,
+                'Unlock Percent': unlock_percent
+            })
+    df = pd.DataFrame(allocation_data)
+    st.write(df)
+
     
 
 
@@ -1177,7 +1340,7 @@ def run_tab15():
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "Crypto Rank"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1210,3 +1373,5 @@ elif selected_tab == "Coin Fundraising Data":
     run_tab14()
 elif selected_tab == "Chat with Database":
     run_tab15()
+elif selected_tab == "Crypto Rank":
+    run_tab16()
