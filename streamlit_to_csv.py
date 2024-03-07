@@ -1415,11 +1415,12 @@ def run_tab16():
     #     st.success(f"PDF generated successfully: [Download PDF]({pdf_filename})")
 
     if st.button("Generate PDF"):
-        pdf_filename = generate_pdf(price_data, token_sale_data, market_data, vesting_data)
-        st.success("PDF Generated Successfully")
-        with open(pdf_filename, "rb") as pdf_file:
-            pdf_bytes = pdf_file.read()
-        st.download_button(label="Download PDF", data=pdf_bytes, file_name=pdf_filename, mime="application/pdf")
+        with st.spinner("Generating PDF..."):
+            pdf_filename = generate_pdf(price_data, token_sale_data, market_data, vesting_data)
+            st.success("PDF Generated Successfully")
+            with open(pdf_filename, "rb") as pdf_file:
+                pdf_bytes = pdf_file.read()
+            st.download_button(label="Download PDF", data=pdf_bytes, file_name=pdf_filename, mime="application/pdf")
 
 
 
