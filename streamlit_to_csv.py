@@ -1184,25 +1184,25 @@ def run_tab16():
 
     # Fetching price data
     def fetch_price_data():
-        url = "https://cryptorank.io/_next/data/BV9JdTl2oxP6wSRFnxThm/en/price/gameswift.json?coinKey=gameswift"
+        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/gameswift.json?coinKey=gameswift"
         data = fetch_data(url)
         return data
 
     # Fetching token sale data
     def fetch_token_sale_data():
-        url = "https://cryptorank.io/_next/data/BV9JdTl2oxP6wSRFnxThm/en/ico/gameswift.json?coinKey=gameswift"
+        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/ico/gameswift.json?coinKey=gameswift"
         data = fetch_data(url)
         return data
 
     # Fetching market data
     def fetch_market_data():
-        url = "https://cryptorank.io/_next/data/BV9JdTl2oxP6wSRFnxThm/en/price/gameswift/exchanges.json?coinKey=gameswift"
+        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/gameswift/exchanges.json?coinKey=gameswift"
         data = fetch_data(url)
         return data
 
     # Fetching vesting data
     def fetch_vesting_data():
-        url = "https://cryptorank.io/_next/data/BV9JdTl2oxP6wSRFnxThm/en/price/gameswift/vesting.json?coinKey=gameswift"
+        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/gameswift/vesting.json?coinKey=gameswift"
         data = fetch_data(url)
         return data
 
