@@ -24,6 +24,10 @@ import plotly.graph_objs as go
 from langchain.agents import create_sql_agent
 from langchain.sql_database import SQLDatabase
 from langchain_openai import ChatOpenAI
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, PageBreak
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
 
 
 load_dotenv()
@@ -1172,6 +1176,7 @@ def run_tab15():
 
 def run_tab16():
 
+    # Function to fetch data from API
     def fetch_data(url):
         response = requests.get(url)
         data = response.json()
@@ -1201,137 +1206,224 @@ def run_tab16():
         data = fetch_data(url)
         return data
 
-    # Main function
+    # Function to generate PDF using ReportLab
+    def generate_pdf(price_data, token_sale_data, market_data, vesting_data):
+        pdf_filename = "gameswift_coin_data.pdf"
+        pdf = SimpleDocTemplate(pdf_filename, pagesize=letter)
+        elements = []
+
+        # Custom styles for headings
+        heading1_style = ParagraphStyle(
+            name='Heading1',
+            fontSize=16,
+            leading=20,
+            fontWeight='Bold',
+            alignment=1,
+            spaceAfter=10
+        )
+        heading2_style = ParagraphStyle(
+            name='Heading2',
+            fontSize=14,
+            leading=18,
+            spaceAfter=8
+        )
+
+        # Title
+        elements.append(Paragraph("GameSwift Coin Data", heading1_style))
+
+        # Price data
+        elements.append(Paragraph("Overview Data", heading1_style))
+        price_info = [
+            ["Coin Name", price_data['pageProps']['coin']['name']],
+            ["Coin Price", price_data['pageProps']['coin']['price']['USD']],
+            ["High Price", price_data['pageProps']['coin']['histData']['high']['24H']['USD']],
+            ["Low Price", price_data['pageProps']['coin']['histData']['low']['24H']['USD']],
+            ["Circulating Supply", price_data['pageProps']['priceStatistics']['availableSupply']],
+            ["Percentage of Max Supply", price_data['pageProps']['priceStatistics']['availableSupplyPercent']],
+            ["Next Unlock", price_data['pageProps']['priceStatistics']['nextUnlockTokens']],
+            ["Percentage of Next Unlock", price_data['pageProps']['priceStatistics']['nextUnlockPercent']],
+            ["Trade Vol", price_data['pageProps']['priceStatistics']['volume24h']],
+            ["Vol 24h/ MCap", price_data['pageProps']['priceStatistics']['volume24hRatio']],
+            ["All Time High", price_data['pageProps']['priceStatistics']['athPrice']],
+            ["All Time Low", price_data['pageProps']['priceStatistics']['atlPrice']],
+            ["From ATH", price_data['pageProps']['priceStatistics']['fromAthPrice']],
+            ["From ATL", price_data['pageProps']['priceStatistics']['fromAtlPrice']],
+            ["IEO Price", price_data['pageProps']['coin']['crowdsales'][0]['price']['USD']],
+            ["IEO Price Raise", price_data['pageProps']['coin']['crowdsales'][0]['raise']['USD']],
+            ["ROI", price_data['pageProps']['coin']['crowdsales'][0]['roi']['value']],
+            ["ROI Percent Change", price_data['pageProps']['coin']['crowdsales'][0]['roi']['percentChange']],
+            ["ATH ROI", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['value']],
+            ["ATH ROI Percent Change", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['percentChange']]
+        ]
+        elements.append(Table(price_info, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(PageBreak())
+
+        # Token sale data
+        elements.append(Paragraph("Token Sale Data", heading1_style))
+        token_sale_info = [
+            ["Title", "Percent"]
+        ]
+        for item in token_sale_data['pageProps']['coin']['icoData']['allocationChart']:
+            token_sale_info.append([item['title'], item['percent']])
+        elements.append(Table(token_sale_info, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(Paragraph(" ", heading1_style))
+        elements.append(Paragraph(" ", heading1_style))
+
+        # Trending token sales
+        elements.append(Paragraph("Trending Token Sales", heading1_style))
+        trending_token_sales = [
+            ["Key", "Name", "Symbol", "Category", "Start Date", "End Date"]
+        ]
+        for item in token_sale_data['pageProps']['fallbackDataTokenSales'][:4]:
+            trending_token_sales.append([item['key'], item['name'], item['symbol'], item['category'], item['round']['startDate'], item['round']['endDate']])
+        elements.append(Table(trending_token_sales, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(PageBreak())
+        # # Market data
+        # elements.append(Paragraph("Market Data", heading1_style))
+        # market_data_table = [
+        #     ["Exchange Name", "Coin Name", "High", "Low", "Open", "Close", "Bid", "Ask", "Base Volume", "USD Volume", "BTC Volume", "Change", "Change Percent", "Spread", "Exchange Percent Volume"]
+        # ]
+        # for ticker in market_data['pageProps']['tickers']:
+        #     market_data_table.append([
+        #         ticker['exchangeName'], ticker['coinName'], ticker['high'], ticker['low'], ticker['open'], ticker['close'],
+        #         ticker['bid'], ticker['ask'], ticker['baseVolume'], ticker['usdVolume'], ticker['btcVolume'],
+        #         ticker.get('change', 'N/A'), ticker.get('changePercent', 'N/A'), ticker['spread'], ticker['exchangePercentVolume']
+        #     ])
+
+        # # Split market data table into multiple sub-tables
+        # sub_tables = [market_data_table[i:i+8] for i in range(0, len(market_data_table), 8)]
+        # for sub_table in sub_tables:
+        #     elements.append(Table(sub_table, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+
+        market_data = fetch_market_data()
+        tickers = market_data['pageProps']['tickers']
+        exchange_names = []
+        coin_names = []
+        highs = []
+        lows = []
+        open_prices = []
+        close_prices = []
+        bids = []
+        asks = []
+        base_volumes = []
+        usd_volumes = []
+        btc_volumes = []
+        changes = []
+        change_percents = []
+        spreads = []
+        exchange_percent_volumes = []
+
+        for ticker in tickers:
+            exchange_names.append(ticker['exchangeName'])
+            coin_names.append(ticker['coinName'])
+            highs.append(ticker['high'])
+            lows.append(ticker['low'])
+            open_prices.append(ticker['open'])
+            close_prices.append(ticker['close'])
+            bids.append(ticker['bid'])
+            asks.append(ticker['ask'])
+            base_volumes.append(ticker['baseVolume'])
+            usd_volumes.append(ticker['usdVolume'])
+            btc_volumes.append(ticker['btcVolume'])
+            changes.append(ticker.get('change', 'N/A'))
+            change_percents.append(ticker.get('changePercent', 'N/A'))
+            spreads.append(ticker['spread'])
+            exchange_percent_volumes.append(ticker['exchangePercentVolume'])
+        
+        # Splitting DataFrame into two DataFrames
+        df = pd.DataFrame({
+            'Exchange Name': exchange_names,
+            'Coin Name': coin_names,
+            'High': highs,
+            'Low': lows,
+            'Open': open_prices,
+            'Close': close_prices,
+            'Bid': bids,
+            'Ask': asks,
+            'Base Volume': base_volumes,
+            'USD Volume': usd_volumes,
+            'BTC Volume': btc_volumes,
+            'Change': changes,
+            'Change Percent': change_percents,
+            'Spread': spreads,
+            'Exchange Percent Volume': exchange_percent_volumes
+        })
+        
+        df_1 = df.iloc[:, :6]  # First 8 columns
+        df_2 = df.iloc[:, 0:1].join(df.iloc[:, 6:11])  # First column "Exchange Name" and the rest 7 columns
+        df_3 = df.iloc[:, 0:1].join(df.iloc[:, 11:])
+        # Convert DataFrames to list of lists
+        table_data_1 = [df_1.columns.tolist()] + df_1.values.tolist()
+        table_data_2 = [df_2.columns.tolist()] + df_2.values.tolist()
+        table_data_3 = [df_3.columns.tolist()] + df_3.values.tolist()
+
+
+
+        # Add two tables to the elements list
+        elements.append(Paragraph("Market Data - Table 1", heading1_style))
+        elements.append(Table(table_data_1, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(Paragraph(" ", heading1_style))
+        elements.append(Paragraph(" ", heading1_style))
+
+        elements.append(Paragraph("Market Data - Table 2", heading1_style))
+        elements.append(Table(table_data_2, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(Paragraph(" ", heading1_style))
+        elements.append(Paragraph(" ", heading1_style))
+
+        elements.append(Paragraph("Market Data - Table 3", heading1_style))
+        elements.append(Table(table_data_3, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(PageBreak())
+
+        
+        vesting_data = fetch_vesting_data()
+        
+
+        # Create vesting data table
+        vesting_table_data = [
+            ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"]
+        ]
+        allocations = vesting_data['pageProps']['vestingInfo']['allocations']
+        for allocation in allocations:
+            name = allocation['name']
+            token_percent = allocation['tokens_percent']
+            token = allocation['tokens']
+            batches = allocation.get('batches', [])
+            for batch in batches:
+                date = batch.get('date')
+                unlock_percent = batch.get('unlock_percent')
+                vesting_table_data.append([name, token_percent, token, date, unlock_percent])
+
+        # Add vesting data table
+        elements.append(Paragraph("Vesting Data", heading1_style))
+        elements.append(Table(vesting_table_data, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        # Build PDF
+        pdf.build(elements)
+        return pdf_filename
+
     
     st.title("GameSwift Coin Data")
 
-    # Fetch price data
+    # Fetch data
     price_data = fetch_price_data()
-    st.header("Overview Data")
-    st.write("Coin Name:", price_data['pageProps']['coin']['name'])
-    st.write("Coin Price:", price_data['pageProps']['coin']['price']['USD'])
-    st.write("High Price:", price_data['pageProps']['coin']['histData']['high']['24H']['USD'])
-    st.write("Low Price:", price_data['pageProps']['coin']['histData']['low']['24H']['USD'])
-    st.write("ATH Market Cap:", price_data['pageProps']['priceStatistics']['athMarketCap'])
-    st.write("Max Supply:", price_data['pageProps']['priceStatistics']['maxSupply'])
-    st.write("Total Supply:", price_data['pageProps']['priceStatistics']['totalSupply'])
-    st.write("Circulating Supply:", price_data['pageProps']['priceStatistics']['availableSupply'])
-    st.write("Percentage of Max Supply:", price_data['pageProps']['priceStatistics']['availableSupplyPercent'])
-    st.write("Next Unlock:", price_data['pageProps']['priceStatistics']['nextUnlockTokens'])
-    st.write("Percentage of Next Unlock:", price_data['pageProps']['priceStatistics']['nextUnlockPercent'])
-    st.write("Trade Vol:", price_data['pageProps']['priceStatistics']['volume24h'])
-    st.write("Vol 24h/ MCap:", price_data['pageProps']['priceStatistics']['volume24hRatio'])
-    st.write("All Time High:", price_data['pageProps']['priceStatistics']['athPrice'])
-    st.write("All Time Low:", price_data['pageProps']['priceStatistics']['atlPrice'])
-    st.write("From ATH:", price_data['pageProps']['priceStatistics']['fromAthPrice'])
-    st.write("From ATL:", price_data['pageProps']['priceStatistics']['fromAtlPrice'])
-    st.write("IEO Price:", price_data['pageProps']['coin']['crowdsales'][0]['price']['USD'])
-    st.write("IEO Price Raise:", price_data['pageProps']['coin']['crowdsales'][0]['raise']['USD'])
-    st.write("ROI:", price_data['pageProps']['coin']['crowdsales'][0]['roi']['value'])
-    st.write("ROI Percent Change:", price_data['pageProps']['coin']['crowdsales'][0]['roi']['percentChange'])
-    st.write("ATH ROI:", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['value'])
-    st.write("ATH ROI Percent Change:", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['percentChange'])
-
-    # Fetch token sale data
     token_sale_data = fetch_token_sale_data()
-    st.header("Token Sale Data")
-    for item in token_sale_data['pageProps']['coin']['icoData']['allocationChart']:
-        st.write("Title:", item['title'])
-        st.write("Percent:", item['percent'])
-        st.write()
-
-    st.header("Trending Token Sales")
-
-    for item in token_sale_data['pageProps']['fallbackDataTokenSales'][:4]:
-        st.write("Key:", item['key'])
-        st.write("Name:", item['name'])
-        st.write("Symbol:", item['symbol'])
-        st.write("Category:", item['category'])
-        st.write("Start Date:", item['round']['startDate'])
-        st.write("End Date:", item['round']['endDate'])
-        st.markdown("<hr>", unsafe_allow_html=True)
-
-
-    # Fetch market data
     market_data = fetch_market_data()
-    st.header("Market Data")
-    tickers = market_data['pageProps']['tickers']
-    exchange_names = []
-    coin_names = []
-    highs = []
-    lows = []
-    open_prices = []
-    close_prices = []
-    bids = []
-    asks = []
-    base_volumes = []
-    usd_volumes = []
-    btc_volumes = []
-    changes = []
-    change_percents = []
-    spreads = []
-    exchange_percent_volumes = []
-
-    for ticker in tickers:
-        exchange_names.append(ticker['exchangeName'])
-        coin_names.append(ticker['coinName'])
-        highs.append(ticker['high'])
-        lows.append(ticker['low'])
-        open_prices.append(ticker['open'])
-        close_prices.append(ticker['close'])
-        bids.append(ticker['bid'])
-        asks.append(ticker['ask'])
-        base_volumes.append(ticker['baseVolume'])
-        usd_volumes.append(ticker['usdVolume'])
-        btc_volumes.append(ticker['btcVolume'])
-        changes.append(ticker.get('change', 'N/A'))
-        change_percents.append(ticker.get('changePercent', 'N/A'))
-        spreads.append(ticker['spread'])
-        exchange_percent_volumes.append(ticker['exchangePercentVolume'])
-
-    df = pd.DataFrame({
-        'Exchange Name': exchange_names,
-        'Coin Name': coin_names,
-        'High': highs,
-        'Low': lows,
-        'Open': open_prices,
-        'Close': close_prices,
-        'Bid': bids,
-        'Ask': asks,
-        'Base Volume': base_volumes,
-        'USD Volume': usd_volumes,
-        'BTC Volume': btc_volumes,
-        'Change': changes,
-        'Change Percent': change_percents,
-        'Spread': spreads,
-        'Exchange Percent Volume': exchange_percent_volumes
-    })
-
-    st.write(df)
-
-
-    # Fetch vesting data
     vesting_data = fetch_vesting_data()
-    st.header("Vesting Data")
-    allocations = vesting_data['pageProps']['vestingInfo']['allocations']
-    allocation_data = []
-    for allocation in allocations:
-        name = allocation['name']
-        token_percent = allocation['tokens_percent']
-        token = allocation['tokens']
-        batches = allocation.get('batches', [])
-        for batch in batches:
-            date = batch.get('date')
-            unlock_percent = batch.get('unlock_percent')
-            allocation_data.append({
-                'Allocation Name': name,
-                'Token Percent': token_percent,
-                'Tokens': token,
-                'Batch Date': date,
-                'Unlock Percent': unlock_percent
-            })
-    df = pd.DataFrame(allocation_data)
-    st.write(df)
+
+    # # Generate PDF button
+    # if st.button("Generate PDF"):
+    #     pdf_filename = generate_pdf(price_data, token_sale_data, market_data, vesting_data)
+    #     st.success(f"PDF generated successfully: [Download PDF]({pdf_filename})")
+
+    if st.button("Generate PDF"):
+        pdf_filename = generate_pdf(price_data, token_sale_data, market_data, vesting_data)
+        st.success("PDF Generated Successfully")
+        with open(pdf_filename, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()
+        st.download_button(label="Download PDF", data=pdf_bytes, file_name=pdf_filename, mime="application/pdf")
+
+
+
+    
 
     
 
