@@ -28,6 +28,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
+from io import BytesIO
 
 
 load_dotenv()
@@ -1176,41 +1177,71 @@ def run_tab15():
 
 def run_tab16():
 
+    def load_data():
+        df = pd.read_excel('coin_keys.xlsx')
+        return df
+
+    def find_coin_name(df, symbol):
+        coin_key = df.loc[df['Symbol'] == symbol, 'Key'].values
+        if len(coin_key) > 0:
+            return coin_key[0]
+        else:
+            return "Ticker not found."
+
+
+
     # Function to fetch data from API
     def fetch_data(url):
         response = requests.get(url)
         data = response.json()
         return data
 
-    # Fetching price data
-    def fetch_price_data():
-        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/gameswift.json?coinKey=gameswift"
-        data = fetch_data(url)
-        return data
 
-    # Fetching token sale data
-    def fetch_token_sale_data():
-        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/ico/gameswift.json?coinKey=gameswift"
+    def fetch_price_data(coin_name):
+        url = f"https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/{coin_name}.json?coinKey={coin_name}"
+        # st.write(url)
         data = fetch_data(url)
-        return data
+        if "notFound" in data and data["notFound"]:
+            return None
+        else:
+            return data
 
-    # Fetching market data
-    def fetch_market_data():
-        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/gameswift/exchanges.json?coinKey=gameswift"
+    def fetch_token_sale_data(coin_name):
+        url = f"https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/ico/{coin_name}.json?coinKey={coin_name}"
+        # st.write(url)
         data = fetch_data(url)
-        return data
+        if "notFound" in data and data["notFound"]:
+            return None
+        else:
+            return data
 
-    # Fetching vesting data
-    def fetch_vesting_data():
-        url = "https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/gameswift/vesting.json?coinKey=gameswift"
+    def fetch_market_data(coin_name):
+        url = f"https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+        # st.write(url)
         data = fetch_data(url)
-        return data
+        if "notFound" in data and data["notFound"]:
+            return None
+
+        else:
+            return data
+
+    def fetch_vesting_data(coin_name):
+        url = f"https://cryptorank.io/_next/data/5lXJ03zw4DcYm4PbW9YtZ/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+        # st.write(url)
+        data = fetch_data(url)
+        if "notFound" in data and data["notFound"]:
+            print(data)
+        else:
+            return data   
+        
 
     # Function to generate PDF using ReportLab
-    def generate_pdf(price_data, token_sale_data, market_data, vesting_data):
-        pdf_filename = "gameswift_coin_data.pdf"
-        pdf = SimpleDocTemplate(pdf_filename, pagesize=letter)
+    def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_data):
+        pdf_content = b''
+        # pdf_filename = "gameswifts_coin_data.pdf"
+        # pdf = SimpleDocTemplate(pdf_filename, pagesize=letter)
         elements = []
+        
 
         # Custom styles for headings
         heading1_style = ParagraphStyle(
@@ -1229,198 +1260,321 @@ def run_tab16():
         )
 
         # Title
-        elements.append(Paragraph("GameSwift Coin Data", heading1_style))
+        elements.append(Paragraph(f"{coin_name} Coin Data", heading1_style))
 
         # Price data
-        elements.append(Paragraph("Overview Data", heading1_style))
-        price_info = [
-            ["Coin Name", price_data['pageProps']['coin']['name']],
-            ["Coin Price", price_data['pageProps']['coin']['price']['USD']],
-            ["High Price", price_data['pageProps']['coin']['histData']['high']['24H']['USD']],
-            ["Low Price", price_data['pageProps']['coin']['histData']['low']['24H']['USD']],
-            ["Circulating Supply", price_data['pageProps']['priceStatistics']['availableSupply']],
-            ["Percentage of Max Supply", price_data['pageProps']['priceStatistics']['availableSupplyPercent']],
-            ["Next Unlock", price_data['pageProps']['priceStatistics']['nextUnlockTokens']],
-            ["Percentage of Next Unlock", price_data['pageProps']['priceStatistics']['nextUnlockPercent']],
-            ["Trade Vol", price_data['pageProps']['priceStatistics']['volume24h']],
-            ["Vol 24h/ MCap", price_data['pageProps']['priceStatistics']['volume24hRatio']],
-            ["All Time High", price_data['pageProps']['priceStatistics']['athPrice']],
-            ["All Time Low", price_data['pageProps']['priceStatistics']['atlPrice']],
-            ["From ATH", price_data['pageProps']['priceStatistics']['fromAthPrice']],
-            ["From ATL", price_data['pageProps']['priceStatistics']['fromAtlPrice']],
-            ["IEO Price", price_data['pageProps']['coin']['crowdsales'][0]['price']['USD']],
-            ["IEO Price Raise", price_data['pageProps']['coin']['crowdsales'][0]['raise']['USD']],
-            ["ROI", price_data['pageProps']['coin']['crowdsales'][0]['roi']['value']],
-            ["ROI Percent Change", price_data['pageProps']['coin']['crowdsales'][0]['roi']['percentChange']],
-            ["ATH ROI", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['value']],
-            ["ATH ROI Percent Change", price_data['pageProps']['coin']['crowdsales'][0]['athRoi']['percentChange']]
-        ]
-        elements.append(Table(price_info, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
-        elements.append(PageBreak())
+        if price_data:
+            elements.append(Paragraph("Overview Data", heading1_style))
+            price_info = []
+
+            # Coin Name
+            try:
+                coin_name = price_data['pageProps']['coin']['name']
+            except KeyError:
+                coin_name = 'N/A'
+            price_info.append(["Coin Name", coin_name])
+
+            # Coin Price
+            try:
+                coin_price = price_data['pageProps']['coin']['price']['USD']
+            except KeyError:
+                coin_price = 'N/A'
+            price_info.append(["Coin Price", coin_price])
+
+            # High Price
+            try:
+                high_price = price_data['pageProps']['coin']['histData']['high']['24H']['USD']
+            except KeyError:
+                high_price = 'N/A'
+            price_info.append(["High Price", high_price])
+
+            # Low Price
+            try:
+                low_price = price_data['pageProps']['coin']['histData']['low']['24H']['USD']
+            except KeyError:
+                low_price = 'N/A'
+            price_info.append(["Low Price", low_price])
+
+            # Circulating Supply
+            try:
+                circulating_supply = price_data['pageProps']['priceStatistics']['availableSupply']
+            except KeyError:
+                circulating_supply = 'N/A'
+            price_info.append(["Circulating Supply", circulating_supply])
+
+            # Percentage of Max Supply
+            try:
+                max_supply_percent = price_data['pageProps']['priceStatistics']['availableSupplyPercent']
+            except KeyError:
+                max_supply_percent = 'N/A'
+            price_info.append(["Percentage of Max Supply", max_supply_percent])
+
+            # Trade Vol
+            try:
+                trade_volume = price_data['pageProps']['priceStatistics']['volume24h']
+            except KeyError:
+                trade_volume = 'N/A'
+            price_info.append(["Trade Vol", trade_volume])
+
+            # Vol 24h/ MCap
+            try:
+                volume_to_market_cap = price_data['pageProps']['priceStatistics']['volume24hRatio']
+            except KeyError:
+                volume_to_market_cap = 'N/A'
+            price_info.append(["Vol 24h/ MCap", volume_to_market_cap])
+
+            # All Time High
+            try:
+                all_time_high = price_data['pageProps']['priceStatistics']['athPrice']
+            except KeyError:
+                all_time_high = 'N/A'
+            price_info.append(["All Time High", all_time_high])
+
+            # All Time Low
+            try:
+                all_time_low = price_data['pageProps']['priceStatistics']['atlPrice']
+            except KeyError:
+                all_time_low = 'N/A'
+            price_info.append(["All Time Low", all_time_low])
+
+            # From ATH
+            try:
+                from_ath = price_data['pageProps']['priceStatistics']['fromAthPrice']
+            except KeyError:
+                from_ath = 'N/A'
+            price_info.append(["From ATH", from_ath])
+
+            # From ATL
+            try:
+                from_atl = price_data['pageProps']['priceStatistics']['fromAtlPrice']
+            except KeyError:
+                from_atl = 'N/A'
+            price_info.append(["From ATL", from_atl])
+
+            # IEO Price
+            try:
+                ieo_price = price_data['pageProps']['coin']['crowdsales'][0]['price']['USD']
+            except (KeyError, IndexError):
+                ieo_price = 'N/A'
+            price_info.append(["IEO Price", ieo_price])
+
+            # IEO Price Raise
+            try:
+                ieo_price_raise = price_data['pageProps']['coin']['crowdsales'][0]['raise']['USD']
+            except (KeyError, IndexError):
+                ieo_price_raise = 'N/A'
+            price_info.append(["IEO Price Raise", ieo_price_raise])
+
+            # ROI
+            try:
+                roi = price_data['pageProps']['coin']['crowdsales'][0]['roi']['value']
+            except (KeyError, IndexError):
+                roi = 'N/A'
+            price_info.append(["ROI", roi])
+
+            # ROI Percent Change
+            try:
+                roi_percent_change = price_data['pageProps']['coin']['crowdsales'][0]['roi']['percentChange']
+            except (KeyError, IndexError):
+                roi_percent_change = 'N/A'
+            price_info.append(["ROI Percent Change", roi_percent_change])
+
+        
+
+            elements.append(Table(price_info, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            elements.append(PageBreak())
+        else:
+            # If vesting data is missing, notify the user
+            elements.append(Paragraph(f"Overview Data is missing in {coin_name} coin.", heading1_style))
 
         # Token sale data
-        elements.append(Paragraph("Token Sale Data", heading1_style))
-        token_sale_info = [
-            ["Title", "Percent"]
-        ]
-        for item in token_sale_data['pageProps']['coin']['icoData']['allocationChart']:
-            token_sale_info.append([item['title'], item['percent']])
-        elements.append(Table(token_sale_info, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
-        elements.append(Paragraph(" ", heading1_style))
-        elements.append(Paragraph(" ", heading1_style))
+        if token_sale_data:
+            elements.append(Paragraph("Token Sale Data", heading1_style))
+            token_sale_info = [
+                ["Title", "Percent"]
+            ]
+            for item in token_sale_data['pageProps']['coin']['icoData']['allocationChart']:
+                token_sale_info.append([item['title'], item['percent']])
+            elements.append(Table(token_sale_info, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            elements.append(Paragraph(" ", heading1_style))
+            elements.append(Paragraph(" ", heading1_style))
 
-        # Trending token sales
-        elements.append(Paragraph("Trending Token Sales", heading1_style))
-        trending_token_sales = [
-            ["Key", "Name", "Symbol", "Category", "Start Date", "End Date"]
-        ]
-        for item in token_sale_data['pageProps']['fallbackDataTokenSales'][:4]:
-            trending_token_sales.append([item['key'], item['name'], item['symbol'], item['category'], item['round']['startDate'], item['round']['endDate']])
-        elements.append(Table(trending_token_sales, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
-        elements.append(PageBreak())
-        # # Market data
-        # elements.append(Paragraph("Market Data", heading1_style))
-        # market_data_table = [
-        #     ["Exchange Name", "Coin Name", "High", "Low", "Open", "Close", "Bid", "Ask", "Base Volume", "USD Volume", "BTC Volume", "Change", "Change Percent", "Spread", "Exchange Percent Volume"]
-        # ]
-        # for ticker in market_data['pageProps']['tickers']:
-        #     market_data_table.append([
-        #         ticker['exchangeName'], ticker['coinName'], ticker['high'], ticker['low'], ticker['open'], ticker['close'],
-        #         ticker['bid'], ticker['ask'], ticker['baseVolume'], ticker['usdVolume'], ticker['btcVolume'],
-        #         ticker.get('change', 'N/A'), ticker.get('changePercent', 'N/A'), ticker['spread'], ticker['exchangePercentVolume']
-        #     ])
+            # Trending token sales
+            elements.append(Paragraph("Trending Token Sales", heading1_style))
+            trending_token_sales = [
+                ["Key", "Name", "Symbol", "Category", "Start Date", "End Date"]
+            ]
+            for item in token_sale_data['pageProps']['fallbackDataTokenSales'][:4]:
+                trending_token_sales.append([item['key'], item['name'], item['symbol'], item['category'], item['round']['startDate'], item['round']['endDate']])
+            elements.append(Table(trending_token_sales, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            elements.append(PageBreak())
+        else:
+            # If vesting data is missing, notify the user
+            elements.append(Paragraph(f"Token Sale Data is missing in {coin_name} coin.", heading1_style))
+    
 
-        # # Split market data table into multiple sub-tables
-        # sub_tables = [market_data_table[i:i+8] for i in range(0, len(market_data_table), 8)]
-        # for sub_table in sub_tables:
-        #     elements.append(Table(sub_table, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        # market_data = fetch_market_data()
+        if market_data:
+            tickers = market_data['pageProps']['tickers']
+            exchange_names = []
+            coin_names = []
+            highs = []
+            lows = []
+            open_prices = []
+            close_prices = []
+            bids = []
+            asks = []
+            base_volumes = []
+            usd_volumes = []
+            btc_volumes = []
+            changes = []
+            change_percents = []
+            spreads = []
+            exchange_percent_volumes = []
 
-        market_data = fetch_market_data()
-        tickers = market_data['pageProps']['tickers']
-        exchange_names = []
-        coin_names = []
-        highs = []
-        lows = []
-        open_prices = []
-        close_prices = []
-        bids = []
-        asks = []
-        base_volumes = []
-        usd_volumes = []
-        btc_volumes = []
-        changes = []
-        change_percents = []
-        spreads = []
-        exchange_percent_volumes = []
-
-        for ticker in tickers:
-            exchange_names.append(ticker['exchangeName'])
-            coin_names.append(ticker['coinName'])
-            highs.append(ticker['high'])
-            lows.append(ticker['low'])
-            open_prices.append(ticker['open'])
-            close_prices.append(ticker['close'])
-            bids.append(ticker['bid'])
-            asks.append(ticker['ask'])
-            base_volumes.append(ticker['baseVolume'])
-            usd_volumes.append(ticker['usdVolume'])
-            btc_volumes.append(ticker['btcVolume'])
-            changes.append(ticker.get('change', 'N/A'))
-            change_percents.append(ticker.get('changePercent', 'N/A'))
-            spreads.append(ticker['spread'])
-            exchange_percent_volumes.append(ticker['exchangePercentVolume'])
-        
-        # Splitting DataFrame into two DataFrames
-        df = pd.DataFrame({
-            'Exchange Name': exchange_names,
-            'Coin Name': coin_names,
-            'High': highs,
-            'Low': lows,
-            'Open': open_prices,
-            'Close': close_prices,
-            'Bid': bids,
-            'Ask': asks,
-            'Base Volume': base_volumes,
-            'USD Volume': usd_volumes,
-            'BTC Volume': btc_volumes,
-            'Change': changes,
-            'Change Percent': change_percents,
-            'Spread': spreads,
-            'Exchange Percent Volume': exchange_percent_volumes
-        })
-        
-        df_1 = df.iloc[:, :6]  # First 8 columns
-        df_2 = df.iloc[:, 0:1].join(df.iloc[:, 6:11])  # First column "Exchange Name" and the rest 7 columns
-        df_3 = df.iloc[:, 0:1].join(df.iloc[:, 11:])
-        # Convert DataFrames to list of lists
-        table_data_1 = [df_1.columns.tolist()] + df_1.values.tolist()
-        table_data_2 = [df_2.columns.tolist()] + df_2.values.tolist()
-        table_data_3 = [df_3.columns.tolist()] + df_3.values.tolist()
+            for ticker in tickers:
+                exchange_names.append(ticker['exchangeName'])
+                coin_names.append(ticker['coinName'])
+                highs.append(ticker['high'])
+                lows.append(ticker['low'])
+                open_prices.append(ticker['open'])
+                close_prices.append(ticker['close'])
+                bids.append(ticker['bid'])
+                asks.append(ticker['ask'])
+                base_volumes.append(ticker['baseVolume'])
+                usd_volumes.append(ticker['usdVolume'])
+                btc_volumes.append(ticker['btcVolume'])
+                changes.append(ticker.get('change', 'N/A'))
+                change_percents.append(ticker.get('changePercent', 'N/A'))
+                spreads.append(ticker['spread'])
+                exchange_percent_volumes.append(ticker['exchangePercentVolume'])
+            
+            # Splitting DataFrame into two DataFrames
+            df = pd.DataFrame({
+                'Exchange Name': exchange_names,
+                'Coin Name': coin_names,
+                'High': highs,
+                'Low': lows,
+                'Open': open_prices,
+                'Close': close_prices,
+                'Bid': bids,
+                'Ask': asks,
+                'Base Volume': base_volumes,
+                'USD Volume': usd_volumes,
+                'BTC Volume': btc_volumes,
+                'Change': changes,
+                'Change Percent': change_percents,
+                'Spread': spreads,
+                'Exchange Percent Volume': exchange_percent_volumes
+            })
+            
+            df_1 = df.iloc[:, :6]  # First 8 columns
+            df_2 = df.iloc[:, 0:1].join(df.iloc[:, 6:11])  # First column "Exchange Name" and the rest 7 columns
+            df_3 = df.iloc[:, 0:1].join(df.iloc[:, 11:])
+            # Convert DataFrames to list of lists
+            table_data_1 = [df_1.columns.tolist()] + df_1.values.tolist()
+            table_data_2 = [df_2.columns.tolist()] + df_2.values.tolist()
+            table_data_3 = [df_3.columns.tolist()] + df_3.values.tolist()
 
 
 
-        # Add two tables to the elements list
-        elements.append(Paragraph("Market Data - Table 1", heading1_style))
-        elements.append(Table(table_data_1, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
-        elements.append(Paragraph(" ", heading1_style))
-        elements.append(Paragraph(" ", heading1_style))
+            # Add two tables to the elements list
+            elements.append(Paragraph("Market Data - Table 1", heading1_style))
+            elements.append(Table(table_data_1, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            elements.append(Paragraph(" ", heading1_style))
+            elements.append(Paragraph(" ", heading1_style))
 
-        elements.append(Paragraph("Market Data - Table 2", heading1_style))
-        elements.append(Table(table_data_2, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
-        elements.append(Paragraph(" ", heading1_style))
-        elements.append(Paragraph(" ", heading1_style))
+            elements.append(Paragraph("Market Data - Table 2", heading1_style))
+            elements.append(Table(table_data_2, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            elements.append(Paragraph(" ", heading1_style))
+            elements.append(Paragraph(" ", heading1_style))
 
-        elements.append(Paragraph("Market Data - Table 3", heading1_style))
-        elements.append(Table(table_data_3, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
-        elements.append(PageBreak())
+            elements.append(Paragraph("Market Data - Table 3", heading1_style))
+            elements.append(Table(table_data_3, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            elements.append(PageBreak())
+        else:
+            # If vesting data is missing, notify the user
+            elements.append(Paragraph(f"Market Data is missing {coin_name} coin.", heading1_style))
 
-        
-        vesting_data = fetch_vesting_data()
         
 
         # Create vesting data table
-        vesting_table_data = [
-            ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"]
-        ]
-        allocations = vesting_data['pageProps']['vestingInfo']['allocations']
-        for allocation in allocations:
-            name = allocation['name']
-            token_percent = allocation['tokens_percent']
-            token = allocation['tokens']
-            batches = allocation.get('batches', [])
-            for batch in batches:
-                date = batch.get('date')
-                unlock_percent = batch.get('unlock_percent')
-                vesting_table_data.append([name, token_percent, token, date, unlock_percent])
+        if vesting_data:
+            vesting_table_data = [
+                ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"]
+            ]
+            allocations = vesting_data['pageProps']['vestingInfo']['allocations']
+            for allocation in allocations:
+                name = allocation['name']
+                token_percent = allocation['tokens_percent']
+                token = allocation['tokens']
+                batches = allocation.get('batches', [])
+                for batch in batches:
+                    date = batch.get('date')
+                    unlock_percent = batch.get('unlock_percent')
+                    vesting_table_data.append([name, token_percent, token, date, unlock_percent])
 
-        # Add vesting data table
-        elements.append(Paragraph("Vesting Data", heading1_style))
-        elements.append(Table(vesting_table_data, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+            # Add vesting data table
+            elements.append(Paragraph("Vesting Data", heading1_style))
+            elements.append(Table(vesting_table_data, style=[('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        else:
+            # If vesting data is missing, notify the user
+            elements.append(Paragraph(f"Vesting Data is missing in {coin_name} coin.", heading1_style))
+            
         # Build PDF
+        pdf_buffer = BytesIO()  # Create a BytesIO buffer to store the PDF content
+        pdf = SimpleDocTemplate(pdf_buffer, pagesize=letter)
         pdf.build(elements)
-        return pdf_filename
+
+        pdf_content = pdf_buffer.getvalue()
+        pdf_buffer.close()
+        return pdf_content
+
+        
+
+
+    st.header("Coin Data PDF's :books:")
+    df = load_data()
+
+    user_input = st.text_input("Enter the ticker name:")
+    
+    coin_name = None 
+    if st.button("Search"):
+        coin_name = find_coin_name(df, user_input)
+        
+        if coin_name == "Ticker not found.":
+            st.error("Invalid Ticker! Please enter the correct Ticker/Symbol.")
+            return
+        # st.write("Coin name:", coin_name)
 
     
-    st.title("GameSwift Coin Data")
+    price_data = fetch_price_data(coin_name)
+    token_sale_data = fetch_token_sale_data(coin_name)
+    market_data = fetch_market_data(coin_name)
+    vesting_data = fetch_vesting_data(coin_name)
 
-    # Fetch data
-    price_data = fetch_price_data()
-    token_sale_data = fetch_token_sale_data()
-    market_data = fetch_market_data()
-    vesting_data = fetch_vesting_data()
-
-    # # Generate PDF button
-    # if st.button("Generate PDF"):
-    #     pdf_filename = generate_pdf(price_data, token_sale_data, market_data, vesting_data)
-    #     st.success(f"PDF generated successfully: [Download PDF]({pdf_filename})")
-
+    coin_name = find_coin_name(df, user_input)
+    
     if st.button("Generate PDF"):
         with st.spinner("Generating PDF..."):
-            pdf_filename = generate_pdf(price_data, token_sale_data, market_data, vesting_data)
+            coin_name = find_coin_name(df, user_input)
+            price_data = fetch_price_data(coin_name)
+            token_sale_data = fetch_token_sale_data(coin_name)
+            market_data = fetch_market_data(coin_name)
+            vesting_data = fetch_vesting_data(coin_name)
+
+            if not token_sale_data:
+                st.warning("Token sale data is missing.")
+            if not market_data:
+                st.warning("Market data is missing.")
+            if not vesting_data:
+                st.warning("Vesting data is missing.")
+                
+            pdf_content = generate_pdf(coin_name,price_data, token_sale_data, market_data,vesting_data)
+
             st.success("PDF Generated Successfully")
-            with open(pdf_filename, "rb") as pdf_file:
-                pdf_bytes = pdf_file.read()
-            st.download_button(label="Download PDF", data=pdf_bytes, file_name=pdf_filename, mime="application/pdf")
+            # print(pdf_content)
+            st.download_button(label="Download PDF", data=pdf_content, file_name=f"{coin_name}.pdf", mime="application/pdf")
 
 
 
