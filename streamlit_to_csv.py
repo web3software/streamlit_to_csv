@@ -520,7 +520,8 @@ def find_coin_name(df, symbol):
 
 def fetch_data_from_skynet(coin_id):
     # Define your Heroku PostgreSQL connection string
-    DATABASE_URL = "postgres://ucjaqskr8p8id6:p9721c6bd1d7d7d97cf608c68650475c54c27e9366893af0c017b705e29210072@ec2-54-197-133-119.compute-1.amazonaws.com:5432/de2vvbr4bsnbvt"
+    # DATABASE_URL = os.getenv("DATABASE_URL")
+    DATABASE_URL = st.secrets["DATABASE_URL"]
 
     # Connect to the PostgreSQL database
     conn = psycopg2.connect(DATABASE_URL)
