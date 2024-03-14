@@ -510,12 +510,37 @@ def find_coin_name(df, symbol):
     # Convert user input to lowercase
     symbol = symbol.lower()
     
-    # Find the coin key without altering the DataFrame
-    coin_key = df.loc[df['Symbol'].str.lower() == symbol, 'Key'].values
-    if len(coin_key) > 0:
-        return coin_key[0]
+    # Find all the coin keys associated with the symbol
+    coin_keys = df.loc[df['Symbol'].str.lower() == symbol, 'Key'].values.tolist()
+    print("Coin keys:", coin_keys)
+    if coin_keys:
+        return coin_keys
     else:
-        return "Ticker not found."
+        return ["Ticker not found."]
+
+def fetch_data_from_skynet(coin_id):
+    # Define your Heroku PostgreSQL connection string
+    DATABASE_URL = "postgres://ucjaqskr8p8id6:p9721c6bd1d7d7d97cf608c68650475c54c27e9366893af0c017b705e29210072@ec2-54-197-133-119.compute-1.amazonaws.com:5432/de2vvbr4bsnbvt"
+
+    # Connect to the PostgreSQL database
+    conn = psycopg2.connect(DATABASE_URL)
+
+    # Create a cursor object to execute SQL queries
+    cur = conn.cursor()
+
+    # Execute the SQL query to fetch data for the specified coin_id
+    cur.execute("SELECT * FROM skynet_data WHERE coin_id = %s", (coin_id,))
+
+    # Fetch all the rows
+    data = cur.fetchone()
+
+    colnames = [desc[0] for desc in cur.description]
+
+    # Close the cursor and connection
+    cur.close()
+    conn.close()
+
+    return colnames, data
 
 def fetch_dataa(url):
     response = requests.get(url)
@@ -609,7 +634,7 @@ def fetch_historical_data(symbol):
         return None, None, None
 
 # Function to generate PDF using ReportLab
-def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_data, price_image_path, supply_image_path):
+def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_data,colnames,skynet_data, price_image_path, supply_image_path):
     pdf_content = b''
     # pdf_filename = "gameswifts_coin_data.pdf"
     # pdf = SimpleDocTemplate(pdf_filename, pagesize=letter)
@@ -674,6 +699,13 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
         except KeyError:
             circulating_supply = 'N/A'
         price_info.append(["Circulating Supply", circulating_supply])
+
+        # Total Supply
+        try:
+            total_supply = price_data['pageProps']['coin']['totalSupply']
+        except KeyError:
+            total_supply = 'N/A'
+        price_info.append(["Total Supply", total_supply])
 
         # Percentage of Max Supply
         try:
@@ -873,9 +905,7 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
 
     # Create vesting data table
     if vesting_data:
-        vesting_table_data = [
-            ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"]
-        ]
+        vesting_table_data = []
         allocations = vesting_data['pageProps']['vestingInfo']['allocations']
         for allocation in allocations:
             name = allocation['name']
@@ -886,6 +916,8 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
                 date = batch.get('date')
                 unlock_percent = batch.get('unlock_percent')
                 vesting_table_data.append([name, token_percent, token, date, unlock_percent])
+        vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
+        vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
 
         # Add vesting data table
         elements.append(Paragraph("Vesting Data", heading1_style))
@@ -895,6 +927,24 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
         # If vesting data is missing, notify the user
         elements.append(Paragraph(f"Vesting Data is missing in {coin_name} coin.", heading1_style))
         elements.append(PageBreak())
+
+    if skynet_data:
+        # Define table data
+        table_data = []
+        # Add fetched data to the table
+        for colname, value in zip(colnames, skynet_data):
+            table_data.append([colname, str(value)])
+
+        table_data = table_data[1:]
+
+        # Create table
+        table = Table(table_data)
+        elements.append(Paragraph("Skynet Data", heading1_style))
+        table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 1, colors.black)]))
+        elements.append(table)
+        elements.append(PageBreak())
+    else:
+        elements.append(Paragraph(f"Coin is not in Skynet.", heading1_style))
         
 
     elements.append(Paragraph("Price Trend Graph", heading1_style))
@@ -1589,54 +1639,43 @@ def run_tab16():
 
     # User input for selecting a coin symbol
     graph_input_symbol = user_input.strip().lower()
-    
-    coin_name = None 
-    if st.button("Search and Generate PDF"):
+
+    if st.button("Search and Generate PDFs"):
         with st.spinner("Searching and Generating PDF..."):
-            coin_name = find_coin_name(df, user_input)
+            if user_input.strip() == "":
+                return
+    
+            coin_names = find_coin_name(df, user_input)
             
-            if coin_name == "Ticker not found.":
+            if not coin_names or "Ticker not found." in coin_names:
                 st.error("Invalid Ticker! Please enter the correct Ticker/Symbol.")
                 return
-            # st.write("Coin name:", coin_name)
 
-            coin_name = find_coin_name(df, user_input)
-            price_data = fetch_price_data(coin_name)
-            token_sale_data = fetch_token_sale_data(coin_name)
-            market_data = fetch_market_data(coin_name)
-            vesting_data = fetch_vesting_data(coin_name)
+            for coin_name in coin_names:
+                price_data = fetch_price_data(coin_name)
+                token_sale_data = fetch_token_sale_data(coin_name)
+                market_data = fetch_market_data(coin_name)
+                vesting_data = fetch_vesting_data(coin_name)
+                colnames, skynet_data = fetch_data_from_skynet(coin_name)
 
-            # if not token_sale_data:
-            #     st.warning("Token sale data is missing.")
-            # if not market_data:
-            #     st.warning("Market data is missing.")
-            # if not vesting_data:
-            #     st.warning("Vesting data is missing.")
+                pdf_generated = False
 
-            pdf_generated = False
-
-            if graph_input_symbol in known_symbols:
-                # Call fetch_historical_data function to get historical data
-                timestamps, prices, circulating_supplies = fetch_historical_data(graph_input_symbol)
-                if timestamps is not None and prices is not None and circulating_supplies is not None:
-                    price_image_path, supply_image_path = generate_graphs(user_input, timestamps, prices, circulating_supplies)
-                else:
-                    st.warning("Failed to fetch from coin market cap.")
-            
-            try:    
-                pdf_content = generate_pdf(coin_name,price_data, token_sale_data, market_data,vesting_data,price_image_path, supply_image_path)
-                pdf_generated = True
-            except UnboundLocalError:
-                st.warning("This coin symbol is not in coin market cap.")
-            if pdf_generated:
-                st.success("PDF Generated Successfully")
-                # print(pdf_content)
-                st.download_button(label="Download PDF", data=pdf_content, file_name=f"{coin_name}.pdf", mime="application/pdf")
-
-
-    
-  
-
+                if graph_input_symbol in known_symbols:
+                    # Call fetch_historical_data function to get historical data
+                    timestamps, prices, circulating_supplies = fetch_historical_data(graph_input_symbol)
+                    if timestamps is not None and prices is not None and circulating_supplies is not None:
+                        price_image_path, supply_image_path = generate_graphs(user_input, timestamps, prices, circulating_supplies)
+                    else:
+                        st.warning("Failed to fetch from coin market cap.")
+                
+                try:    
+                    pdf_content = generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_data, colnames, skynet_data, price_image_path, supply_image_path)
+                    pdf_generated = True
+                except UnboundLocalError:
+                    st.warning("This coin symbol is not in coin market cap.")
+                if pdf_generated:
+                    st.success("PDF Generated Successfully")
+                    st.download_button(label=f"Download {coin_name} PDF", data=pdf_content, file_name=f"{coin_name}.pdf", mime="application/pdf")
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
