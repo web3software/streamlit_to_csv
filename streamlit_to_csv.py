@@ -550,7 +550,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/nkOr58O-fmRx5cq5pZoOB/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/wPXuQAvtkXgnWZvdZsOR6/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -559,7 +559,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/nkOr58O-fmRx5cq5pZoOB/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/wPXuQAvtkXgnWZvdZsOR6/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -568,7 +568,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/nkOr58O-fmRx5cq5pZoOB/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/wPXuQAvtkXgnWZvdZsOR6/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -578,7 +578,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/nkOr58O-fmRx5cq5pZoOB/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/wPXuQAvtkXgnWZvdZsOR6/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -903,7 +903,7 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
         elements.append(Paragraph(f"Market Data is missing {coin_name} coin.", heading1_style))
 
     
-
+    today_date = datetime.date.today()
     # Create vesting data table
     if vesting_data:
         vesting_table_data = []
@@ -916,7 +916,11 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
             for batch in batches:
                 date = batch.get('date')
                 unlock_percent = batch.get('unlock_percent')
-                vesting_table_data.append([name, token_percent, token, date, unlock_percent])
+                if date:
+                    # Adjust the format string to include time information
+                    date_obj = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                    if date_obj >= today_date:
+                        vesting_table_data.append([name, token_percent, token, date, unlock_percent])
         vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
         vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
 
@@ -1682,7 +1686,7 @@ def run_tab16():
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "Crypto Rank"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1715,5 +1719,5 @@ elif selected_tab == "Coin Fundraising Data":
     run_tab14()
 elif selected_tab == "Chat with Database":
     run_tab15()
-elif selected_tab == "Crypto Rank":
+elif selected_tab == "PDF Research Report":
     run_tab16()
