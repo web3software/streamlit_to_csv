@@ -30,6 +30,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from io import BytesIO
 import datetime
+import base64
 
 
 load_dotenv()
@@ -1680,7 +1681,11 @@ def run_tab16():
                     st.warning("This coin symbol is not in coin market cap.")
                 if pdf_generated:
                     st.success("PDF Generated Successfully")
-                    st.download_button(label=f"Download {coin_name} PDF", data=pdf_content, file_name=f"{coin_name}.pdf", mime="application/pdf")
+                    # Convert PDF content to base64
+                    pdf_b64 = base64.b64encode(pdf_content).decode("utf-8")
+                    # Generate download link using JavaScript
+                    href = f'<a href="data:application/pdf;base64,{pdf_b64}" download="{coin_name}.pdf">Download {coin_name} PDF</a>'
+                    st.markdown(href, unsafe_allow_html=True)
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
