@@ -553,7 +553,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/4Cs39mau1folmEDk3xncc/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -562,7 +562,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/4Cs39mau1folmEDk3xncc/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -571,7 +571,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/4Cs39mau1folmEDk3xncc/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -581,7 +581,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/4Cs39mau1folmEDk3xncc/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -947,7 +947,7 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
 
         # Create table
         table = Table(table_data)
-        elements.append(Paragraph("Skynet Data", heading1_style))
+        elements.append(Paragraph("Skynet and Certik Data", heading1_style))
         table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 1, colors.black)]))
         elements.append(table)
         elements.append(PageBreak())
