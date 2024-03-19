@@ -31,6 +31,8 @@ from reportlab.lib.styles import ParagraphStyle
 from io import BytesIO
 import datetime
 import base64
+from unidecode import unidecode
+from fpdf import FPDF
 
 
 load_dotenv()
@@ -1687,11 +1689,101 @@ def run_tab16():
                     href = f'<a href="data:application/pdf;base64,{pdf_b64}" download="{coin_name}.pdf">Download {coin_name} PDF</a>'
                     st.markdown(href, unsafe_allow_html=True)
 
+def fetch_coin_data(api_key, limit=6772):
+    url = f"https://api.cryptorank.io/v1/currencies?api_key={api_key}&limit={limit}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()['data']
+    else:
+        st.error("Failed to fetch coin data from the API.")
+        return None
+
+def filter_data(coins_data, x=None, y=None, z=None):
+    filtered_coins = []
+    for coin in coins_data:
+        market_cap = coin['values']['USD']['marketCap']
+        volume_24h = coin['volume24hBase']
+
+        if x is None:
+            x = 0
+        if y is None:
+            y = float('inf')
+
+        if x is None and y is None:
+            st.error("Error: Either X or Y must have a value.")
+            return None
+
+        if z is not None and volume_24h < z:
+            continue
+
+        if market_cap >= x and market_cap <= y:
+            filtered_coins.append({
+                'symbol': coin['symbol'],
+                'coin_name': coin['name'],
+                'marketcap': market_cap,
+                'volume_24h': volume_24h
+            })
+    
+    return filtered_coins
+
+def run_tab17():
+    st.title("Cryptocurrency Filter")
+    api_key = "2fe893fde336c7798b3bff25eec457105900bdfaea72b1bb7f331605b71d"
+    coins_data = fetch_coin_data(api_key)
+    if coins_data:
+        x = st.number_input("Enter the minimum market cap (X)", value=None)
+        y = st.number_input("Enter the maximum market cap (Y)", value=None)
+        z = st.number_input("Enter the minimum 24-hour volume (Z)", step=0.01, value=None)
+        
+        if st.button("Filter"):
+            if x is None and y is None:
+                st.error("Error: Either X or Y must have a value.")
+            else:
+                filtered_coins = filter_data(coins_data, x, y, z)
+                if filtered_coins is not None:
+                    # Convert filtered data to DataFrame
+                    df = pd.DataFrame(filtered_coins)
+                    st.write(df)
+                    # Generate PDF
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", size=12)
+                    # Add table to PDF
+                    pdf.cell(200, 10, txt="Filtered Coins", ln=True, align="C")
+                    pdf.ln(10)
+                    col_width = 45
+                    row_height = 10
+                    for col in df.columns:
+                        pdf.cell(col_width, row_height, txt=unidecode(col), border=1)
+                    pdf.ln(row_height)
+                    for index, row in df.iterrows():
+                        for col in df.columns:
+                            pdf.cell(col_width, row_height, txt=unidecode(str(row[col])), border=1)
+                        pdf.ln(row_height)
+                    
+                    # Get PDF content buffer
+                    pdf_buffer = BytesIO()
+                    pdf_output = pdf.output(dest='S')
+                    pdf_buffer.write(pdf_output.encode('latin1'))
+                    pdf_bytes = pdf_buffer.getvalue()
+                    pdf_buffer.close()
+                    
+                    # Provide download button
+                    st.download_button(
+                        label="Download PDF",
+                        data=pdf_bytes,
+                        file_name="filtered_coins.pdf",
+                        mime="application/pdf"
+                    )
+
+
+    
+
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report", "Coin Filtering Today"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1726,3 +1818,5 @@ elif selected_tab == "Chat with Database":
     run_tab15()
 elif selected_tab == "PDF Research Report":
     run_tab16()
+elif selected_tab == "Coin Filtering Today":
+    run_tab17()
