@@ -1700,6 +1700,11 @@ def fetch_coin_data(api_key, limit=6772):
 
 def filter_data(coins_data, x=None, y=None, z=None):
     filtered_coins = []
+
+    if x > y:
+        st.error("Invalid range: X must be less than Y.")
+        return None
+    
     for coin in coins_data:
         market_cap = coin['values']['USD']['marketCap']
         volume_24h = coin['volume24hBase']
@@ -1723,7 +1728,7 @@ def filter_data(coins_data, x=None, y=None, z=None):
                 'marketcap': market_cap,
                 'volume_24h': volume_24h
             })
-    
+    filtered_coins.sort(key=lambda x: x['marketcap'])
     return filtered_coins
 
 def run_tab17():
