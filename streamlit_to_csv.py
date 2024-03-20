@@ -553,7 +553,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -562,7 +562,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -571,7 +571,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -581,7 +581,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/rbdAmWGymfIAgbktsLiOr/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
