@@ -553,7 +553,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -562,7 +562,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -571,7 +571,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -581,7 +581,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/LdyXQ35OWcihz1PBT8Cmg/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -1698,38 +1698,76 @@ def fetch_coin_data(api_key, limit=6772):
         st.error("Failed to fetch coin data from the API.")
         return None
 
-def filter_data(coins_data, x=None, y=None, z=None):
+def filter_data(coins_data, x=None, y=None, z=None, api_key="2fe893fde336c7798b3bff25eec457105900bdfaea72b1bb7f331605b71d"):
     filtered_coins = []
 
-    if x > y:
-        st.error("Invalid range: X must be less than Y.")
-        return None
-    
     for coin in coins_data:
         market_cap = coin['values']['USD']['marketCap']
-        volume_24h = coin['volume24hBase']
+        volume_24h_units = coin['volume24hBase']
+
+        # Fetch current price of the coin
+        price = coin['values']['USD']['price']
+
+        # Calculate 24-hour volume in dollars
+        volume_24h_dollars = volume_24h_units * price
 
         if x is None:
             x = 0
         if y is None:
             y = float('inf')
 
-        if x is None and y is None:
-            st.error("Error: Either X or Y must have a value.")
-            return None
-
-        if z is not None and volume_24h < z:
+        if z is not None and volume_24h_dollars < z:
             continue
 
-        if market_cap >= x and market_cap <= y:
-            filtered_coins.append({
-                'symbol': coin['symbol'],
-                'coin_name': coin['name'],
-                'marketcap': market_cap,
-                'volume_24h': volume_24h
-            })
+        if (x is not None and y is not None) and x > y:
+            st.error("Invalid range: X must be less than or equal to Y.")
+            return None
+
+        if x is not None and y is not None:
+            if market_cap >= x and market_cap <= y:
+                filtered_coins.append({
+                    'symbol': coin['symbol'],
+                    'coin_name': coin['name'],
+                    'marketcap': market_cap,
+                    'volume_24h': volume_24h_dollars  # Store volume in dollars
+                })
+        
+
     filtered_coins.sort(key=lambda x: x['marketcap'])
     return filtered_coins
+
+def generate_pdf_filter(df):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    # Add table to PDF
+    pdf.cell(200, 10, txt="Filtered Coins", ln=True, align="C")
+    pdf.ln(10)
+    col_width = 45
+    row_height = 10
+    for col in df.columns:
+        pdf.cell(col_width, row_height, txt=unidecode(col), border=1)
+    pdf.ln(row_height)
+    for index, row in df.iterrows():
+        for col in df.columns:
+            pdf.cell(col_width, row_height, txt=unidecode(str(row[col])), border=1)
+        pdf.ln(row_height)
+    
+    # Get PDF content buffer
+    pdf_buffer = BytesIO()
+    pdf_output = pdf.output(dest='S')
+    pdf_buffer.write(pdf_output.encode('latin1'))
+    pdf_bytes = pdf_buffer.getvalue()
+    pdf_buffer.close()
+    
+    # Provide download button
+    st.download_button(
+        label="Download PDF",
+        data=pdf_bytes,
+        file_name="filtered_coins.pdf",
+        mime="application/pdf"
+    )
+
 
 def run_tab17():
     st.title("Cryptocurrency Filter")
@@ -1738,48 +1776,33 @@ def run_tab17():
     if coins_data:
         x = st.number_input("Enter the minimum market cap (X)", value=None)
         y = st.number_input("Enter the maximum market cap (Y)", value=None)
-        z = st.number_input("Enter the minimum 24-hour volume (Z)", step=0.01, value=None)
         
+        # Allow user to input minimum 24-hour volume in dollars
+        z_usd = st.number_input("Enter the minimum 24-hour volume (Z) in dollars", step=0.01, value=None)
+        
+        # If user inputs a value for Z in dollars, convert it to units based on the current price of each coin
+        z_units = None
+        if z_usd is not None:
+            for coin in coins_data:
+                price = coin['values']['USD']['price']
+                volume_24h_units = coin['volume24hBase']
+                volume_24h_dollars = volume_24h_units * price
+                if volume_24h_dollars >= z_usd:
+                    z_units = volume_24h_units
+                    break
+
         if st.button("Filter"):
             if x is None and y is None:
                 st.error("Error: Either X or Y must have a value.")
             else:
-                filtered_coins = filter_data(coins_data, x, y, z)
+                filtered_coins = filter_data(coins_data, x, y, z_units)
                 if filtered_coins is not None:
                     # Convert filtered data to DataFrame
                     df = pd.DataFrame(filtered_coins)
+                    df.rename(columns={'volume_24h': 'volume_24h_dollar'}, inplace=True)
                     st.write(df)
-                    # Generate PDF
-                    pdf = FPDF()
-                    pdf.add_page()
-                    pdf.set_font("Arial", size=12)
-                    # Add table to PDF
-                    pdf.cell(200, 10, txt="Filtered Coins", ln=True, align="C")
-                    pdf.ln(10)
-                    col_width = 45
-                    row_height = 10
-                    for col in df.columns:
-                        pdf.cell(col_width, row_height, txt=unidecode(col), border=1)
-                    pdf.ln(row_height)
-                    for index, row in df.iterrows():
-                        for col in df.columns:
-                            pdf.cell(col_width, row_height, txt=unidecode(str(row[col])), border=1)
-                        pdf.ln(row_height)
-                    
-                    # Get PDF content buffer
-                    pdf_buffer = BytesIO()
-                    pdf_output = pdf.output(dest='S')
-                    pdf_buffer.write(pdf_output.encode('latin1'))
-                    pdf_bytes = pdf_buffer.getvalue()
-                    pdf_buffer.close()
-                    
-                    # Provide download button
-                    st.download_button(
-                        label="Download PDF",
-                        data=pdf_bytes,
-                        file_name="filtered_coins.pdf",
-                        mime="application/pdf"
-                    )
+                    # Generate PDF and provide download button
+                    generate_pdf_filter(df)
 
 
     
