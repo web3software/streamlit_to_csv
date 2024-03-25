@@ -1788,7 +1788,7 @@ def run_tab17():
     if coins_data:
         x = st.number_input("Enter the minimum market cap (X)", value=None)
         y = st.number_input("Enter the maximum market cap (Y)", value=None)
-        z = st.number_input("Enter the minimum 24-hour volume (Z)", step=0.01, value=None)
+        z = st.number_input("Enter the 24-hour volume $ (Z)", step=0.01, value=None)
         
         if st.button("Filter"):
             if x is None and y is None:
