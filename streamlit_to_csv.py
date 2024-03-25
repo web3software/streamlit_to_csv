@@ -553,7 +553,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -562,7 +562,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -571,7 +571,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -581,7 +581,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/uHikxgshCdRJmXxZkR9kV/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -970,7 +970,17 @@ def generate_pdf(coin_name, price_data, token_sale_data, market_data, vesting_da
     pdf_buffer.close()
     return pdf_content
 
-
+def fetch_coin_data_coinmarket(api_key, limit=5000):
+    url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit={limit}"
+    headers = {
+        "X-CMC_PRO_API_KEY": api_key
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()['data']
+    else:
+        st.error("Failed to fetch coin data from the API.")
+        return None
 
 
 def run_tab1():
@@ -1698,40 +1708,44 @@ def fetch_coin_data(api_key, limit=6772):
         st.error("Failed to fetch coin data from the API.")
         return None
 
-def filter_data(coins_data, x=None, y=None, z=None, api_key="2fe893fde336c7798b3bff25eec457105900bdfaea72b1bb7f331605b71d"):
+def filter_data(coins_data, x=None, y=None, z=None):
     filtered_coins = []
 
+    if x is not None and y is not None and x > y:
+        st.error("Invalid range: X must be less than or equal to Y.")
+        return None
+    
     for coin in coins_data:
-        market_cap = coin['values']['USD']['marketCap']
-        volume_24h_units = coin['volume24hBase']
-
-        # Fetch current price of the coin
-        price = coin['values']['USD']['price']
-
-        # Calculate 24-hour volume in dollars
-        volume_24h_dollars = volume_24h_units * price
+        market_cap = coin['quote']['USD']['market_cap']
+        volume_24h = coin['quote']['USD']['volume_24h']
+        price = coin['quote']['USD']['price']
+        name = coin['name']
+        symbol = coin['symbol']
 
         if x is None:
             x = 0
         if y is None:
             y = float('inf')
 
-        if z is not None and volume_24h_dollars < z:
-            continue
-
-        if (x is not None and y is not None) and x > y:
-            st.error("Invalid range: X must be less than or equal to Y.")
+        if x is None and y is None:
+            st.error("Error: Either X or Y must have a value.")
             return None
 
-        if x is not None and y is not None:
-            if market_cap >= x and market_cap <= y:
-                filtered_coins.append({
-                    'symbol': coin['symbol'],
-                    'coin_name': coin['name'],
-                    'marketcap': market_cap,
-                    'volume_24h': volume_24h_dollars  # Store volume in dollars
-                })
-        
+        if z is not None and volume_24h < z:
+            continue
+
+        if market_cap >= x and market_cap <= y:
+            # Calculate volume_24h_dollar
+            volume_24h_dollar = volume_24h * price
+
+            filtered_coins.append({
+                'symbol': symbol,
+                'coin_name': name,
+                'marketcap': market_cap,
+                'volume_24h': volume_24h,
+                # 'price': price,
+                'volume_24h_dollar': volume_24h_dollar  # Add new column
+            })
 
     filtered_coins.sort(key=lambda x: x['marketcap'])
     return filtered_coins
@@ -1770,39 +1784,94 @@ def generate_pdf_filter(df):
 
 
 def run_tab17():
-    st.title("Cryptocurrency Filter")
-    api_key = "2fe893fde336c7798b3bff25eec457105900bdfaea72b1bb7f331605b71d"
-    coins_data = fetch_coin_data(api_key)
+    st.title("Cryptocurrency Filter and Vesting Data")
+    # api_key = os.getenv("COIN_MARKET_API_KEY")
+    api_key = st.secrets["COIN_MARKET_API_KEY"]
+    coins_data = fetch_coin_data_coinmarket(api_key)
+    filtered_coins = None
     if coins_data:
         x = st.number_input("Enter the minimum market cap (X)", value=None)
         y = st.number_input("Enter the maximum market cap (Y)", value=None)
+        z = st.number_input("Enter 24-hour volume in $ (Z)", step=0.01, value=None)
         
-        # Allow user to input minimum 24-hour volume in dollars
-        z_usd = st.number_input("Enter the minimum 24-hour volume (Z) in dollars", step=0.01, value=None)
-        
-        # If user inputs a value for Z in dollars, convert it to units based on the current price of each coin
-        z_units = None
-        if z_usd is not None:
-            for coin in coins_data:
-                price = coin['values']['USD']['price']
-                volume_24h_units = coin['volume24hBase']
-                volume_24h_dollars = volume_24h_units * price
-                if volume_24h_dollars >= z_usd:
-                    z_units = volume_24h_units
-                    break
-
         if st.button("Filter"):
             if x is None and y is None:
                 st.error("Error: Either X or Y must have a value.")
+            elif x is not None and y is not None and x > y:
+                st.error("Invalid range: X must be less than or equal to Y.")
             else:
-                filtered_coins = filter_data(coins_data, x, y, z_units)
+                filtered_coins = filter_data(coins_data, x, y, z)
                 if filtered_coins is not None:
-                    # Convert filtered data to DataFrame
-                    df = pd.DataFrame(filtered_coins)
-                    df.rename(columns={'volume_24h': 'volume_24h_dollar'}, inplace=True)
-                    st.write(df)
-                    # Generate PDF and provide download button
-                    generate_pdf_filter(df)
+                    if filtered_coins:
+                        # Convert filtered data to DataFrame
+                        df = pd.DataFrame(filtered_coins)
+                        st.write(df)
+
+                        # Generate PDF
+                        buffer = BytesIO()
+                        doc = SimpleDocTemplate(buffer, pagesize=letter)
+                        data = [df.columns.tolist()] + df.values.tolist()
+                        table = Table(data, colWidths=[70, 120, 105, 100, 120])
+                        style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                                            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                                            ('GRID', (0, 0), (-1, -1), 1, colors.black)])
+                        table.setStyle(style)
+                        elems = []
+                        elems.append(table)
+                        doc.build(elems)
+                        pdf_data = buffer.getvalue()
+                        buffer.close()
+
+                        # Provide download button
+                        st.download_button(
+                            label="Download PDF",
+                            data=pdf_data,
+                            file_name="filtered_coins.pdf",
+                            mime="application/pdf"
+                        )
+                    else:
+                        st.write("No records found in your applied result.")
+                        return
+
+        if z is not None and filtered_coins:
+            show_vesting_data = st.radio("Do you want to show vesting data?", ('Yes', 'No'))
+            if show_vesting_data == 'Yes':
+                df = load_data()
+                symbol = st.text_input('Enter the symbol of the coin:')
+                if st.button('Get Vesting Data'):
+                    coin_names = find_coin_name(df, symbol)
+                    for coin_name in coin_names:
+                        vesting_data = fetch_vesting_data(coin_name)
+                        if vesting_data:
+                            today_date = datetime.date.today()
+                            vesting_table_data = []
+                            allocations = vesting_data['pageProps']['vestingInfo']['allocations']
+                            for allocation in allocations:
+                                name = allocation['name']
+                                token_percent = allocation['tokens_percent']
+                                token = allocation['tokens']
+                                batches = allocation.get('batches', [])
+                                for batch in batches:
+                                    date = batch.get('date')
+                                    unlock_percent = batch.get('unlock_percent')
+                                    if date:
+                                        date_obj = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                                        if date_obj >= today_date:
+                                            vesting_table_data.append([name, token_percent, token, date, unlock_percent])
+                            vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
+                            vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
+                            vesting_df = pd.DataFrame(vesting_table_data[1:], columns=vesting_table_data[0])
+    
+                            # Remove index column
+                            vesting_df_no_index = vesting_df.reset_index(drop=True)
+                            st.write(f"Vesting Data for {coin_name}:")
+                            st.table(vesting_df_no_index)
+                        else:
+                            st.write(f"Vesting Data is missing for {symbol} coin.")
 
 
     
