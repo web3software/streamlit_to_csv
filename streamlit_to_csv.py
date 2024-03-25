@@ -509,17 +509,11 @@ def load_data():
     df = pd.read_excel('coin_keys.xlsx')
     return df
 
+# Find coin name
 def find_coin_name(df, symbol):
-    # Convert user input to lowercase
     symbol = symbol.lower()
-    
-    # Find all the coin keys associated with the symbol
     coin_keys = df.loc[df['Symbol'].str.lower() == symbol, 'Key'].values.tolist()
-    print("Coin keys:", coin_keys)
-    if coin_keys:
-        return coin_keys
-    else:
-        return ["Ticker not found."]
+    return coin_keys if coin_keys else ["Ticker not found."]
 
 def fetch_data_from_skynet(coin_id):
     # Define your Heroku PostgreSQL connection string
@@ -553,7 +547,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/XUG6L4yjy_WS2qN8tRUFJ/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -562,7 +556,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/XUG6L4yjy_WS2qN8tRUFJ/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -571,7 +565,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/XUG6L4yjy_WS2qN8tRUFJ/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -581,7 +575,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/-69zv-Zc9trEU5r6aRArV/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/XUG6L4yjy_WS2qN8tRUFJ/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -1784,15 +1778,14 @@ def generate_pdf_filter(df):
 
 
 def run_tab17():
-    st.title("Cryptocurrency Filter and Vesting Data")
-    # api_key = os.getenv("COIN_MARKET_API_KEY")
+    st.title('Cryptocurrency Filter and Vesting Data')
+    api_key = os.getenv("COIN_MARKET_API_KEY")
     api_key = st.secrets["COIN_MARKET_API_KEY"]
-    coins_data = fetch_coin_data_coinmarket(api_key)
-    filtered_coins = None
+    coins_data = fetch_coin_data(api_key)
     if coins_data:
         x = st.number_input("Enter the minimum market cap (X)", value=None)
         y = st.number_input("Enter the maximum market cap (Y)", value=None)
-        z = st.number_input("Enter 24-hour volume in $ (Z)", step=0.01, value=None)
+        z = st.number_input("Enter the minimum 24-hour volume (Z)", step=0.01, value=None)
         
         if st.button("Filter"):
             if x is None and y is None:
@@ -1802,48 +1795,43 @@ def run_tab17():
             else:
                 filtered_coins = filter_data(coins_data, x, y, z)
                 if filtered_coins is not None:
-                    if filtered_coins:
-                        # Convert filtered data to DataFrame
-                        df = pd.DataFrame(filtered_coins)
-                        st.write(df)
+                    # Convert filtered data to DataFrame
+                    df = pd.DataFrame(filtered_coins)
+                    st.write(df)
+                    # Generate PDF
+                    buffer = BytesIO()
+                    doc = SimpleDocTemplate(buffer, pagesize=letter)
+                    data = [df.columns.tolist()] + df.values.tolist()
+                    table = Table(data, colWidths=[70, 120, 105, 100, 120])
+                    style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                                        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                                        ('GRID', (0, 0), (-1, -1), 1, colors.black)])
+                    table.setStyle(style)
+                    elems = []
+                    elems.append(table)
+                    doc.build(elems)
+                    pdf_data = buffer.getvalue()
+                    buffer.close()
 
-                        # Generate PDF
-                        buffer = BytesIO()
-                        doc = SimpleDocTemplate(buffer, pagesize=letter)
-                        data = [df.columns.tolist()] + df.values.tolist()
-                        table = Table(data, colWidths=[70, 120, 105, 100, 120])
-                        style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                                            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                                            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                                            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                                            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                                            ('GRID', (0, 0), (-1, -1), 1, colors.black)])
-                        table.setStyle(style)
-                        elems = []
-                        elems.append(table)
-                        doc.build(elems)
-                        pdf_data = buffer.getvalue()
-                        buffer.close()
-
-                        # Provide download button
-                        st.download_button(
-                            label="Download PDF",
-                            data=pdf_data,
-                            file_name="filtered_coins.pdf",
-                            mime="application/pdf"
-                        )
-                    else:
-                        st.write("No records found in your applied result.")
-                        return
-
-        if z is not None and filtered_coins:
-            show_vesting_data = st.radio("Do you want to show vesting data?", ('Yes', 'No'))
+                    # Provide download button
+                    st.download_button(
+                        label="Download PDF",
+                        data=pdf_data,
+                        file_name="filtered_coins.pdf",
+                        mime="application/pdf"
+                   )
+        if z is not None :
+            show_vesting_data = st.selectbox("Do you want Vesting Data?", ('No', 'Yes'))
             if show_vesting_data == 'Yes':
-                df = load_data()
                 symbol = st.text_input('Enter the symbol of the coin:')
                 if st.button('Get Vesting Data'):
+                    df = load_data()
                     coin_names = find_coin_name(df, symbol)
+                    print(coin_names)
                     for coin_name in coin_names:
                         vesting_data = fetch_vesting_data(coin_name)
                         if vesting_data:
@@ -1864,23 +1852,61 @@ def run_tab17():
                                             vesting_table_data.append([name, token_percent, token, date, unlock_percent])
                             vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
                             vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
-                            vesting_df = pd.DataFrame(vesting_table_data[1:], columns=vesting_table_data[0])
-    
-                            # Remove index column
-                            vesting_df_no_index = vesting_df.reset_index(drop=True)
-                            st.write(f"Vesting Data for {coin_name}:")
-                            st.table(vesting_df_no_index)
+                            st.write(f"Vesting Data for coin {coin_name}")
+                            st.table(vesting_table_data)
                         else:
-                            st.write(f"Vesting Data is missing for {symbol} coin.")
+                            st.write(f"Vesting Data is missing in {coin_name} coin.")
 
 
-    
+
+def run_tab18():
+    # connection_string = os.getenv("DATABASE_URL")
+    connection_string = st.secrets["DATABASE_URL"]
+
+    # Connect to PostgreSQL database
+    conn = psycopg2.connect(connection_string)
+    cursor = conn.cursor()
+
+    # Function to calculate percentage change
+    def calculate_percentage_change(current_price, old_price):
+        return ((current_price - old_price) / old_price) * 100
+
+    # Function to fetch historical price of a coin
+    def fetch_historical_price(symbol, timestamp):
+        six_months_ago = timestamp - timedelta(days=180)
+        cursor.execute("SELECT price FROM coinmarket_historical_data WHERE symbol = %s AND timestamp >= %s ORDER BY timestamp ASC LIMIT 1", (symbol, six_months_ago))
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return None
+        
+    st.title("Filter by Price Action")
+    price_change_desired = st.number_input("What is the price change desired in %", min_value=-100.0, max_value=100.0, step=0.01)
+
+    if st.button("Filter"):
+        st.subheader("List of coins with price change ({:.2f}% from 6 months ago)".format(price_change_desired))
+        st.write("Symbol | Price Change % (+/-)")
+        
+        # Fetch all coins
+        cursor.execute("SELECT DISTINCT symbol, price, timestamp FROM coinmarket_historical_data")
+        coins = cursor.fetchall()
+        
+        # Filter coins based on price change
+        for coin in coins:
+            symbol, current_price, timestamp = coin
+            historical_price = fetch_historical_price(symbol, timestamp)
+            if historical_price is not None:
+                percentage_change = calculate_percentage_change(current_price, historical_price)
+                if percentage_change > price_change_desired:
+                    st.write("{} | {:.2f}".format(symbol, percentage_change))
+        
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report", "Coin Filtering Today"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report", "Coin Filtering Today", "Coin Filtering Historical"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1917,3 +1943,5 @@ elif selected_tab == "PDF Research Report":
     run_tab16()
 elif selected_tab == "Coin Filtering Today":
     run_tab17()
+elif selected_tab == "Coin Filtering Historical":
+    run_tab18()
