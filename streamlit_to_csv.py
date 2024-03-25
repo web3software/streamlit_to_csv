@@ -1693,9 +1693,12 @@ def run_tab16():
                     href = f'<a href="data:application/pdf;base64,{pdf_b64}" download="{coin_name}.pdf">Download {coin_name} PDF</a>'
                     st.markdown(href, unsafe_allow_html=True)
 
-def fetch_coin_data(api_key, limit=6772):
-    url = f"https://api.cryptorank.io/v1/currencies?api_key={api_key}&limit={limit}"
-    response = requests.get(url)
+def fetch_coin_data(api_key, limit=5000):
+    url = f"https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit={limit}"
+    headers = {
+        "X-CMC_PRO_API_KEY": api_key
+    }
+    response = requests.get(url, headers=headers)
     if response.status_code == 200:
         return response.json()['data']
     else:
