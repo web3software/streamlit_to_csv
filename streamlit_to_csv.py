@@ -1782,7 +1782,7 @@ def generate_pdf_filter(df):
 
 def run_tab17():
     st.title('Cryptocurrency Filter and Vesting Data')
-    api_key = os.getenv("COIN_MARKET_API_KEY")
+    # api_key = os.getenv("COIN_MARKET_API_KEY")
     api_key = st.secrets["COIN_MARKET_API_KEY"]
     coins_data = fetch_coin_data(api_key)
     if coins_data:
@@ -1885,25 +1885,26 @@ def run_tab18():
             return None
         
     st.title("Filter by Price Action")
-    price_change_desired = st.number_input("What is the price change desired in %", min_value=-100.0, max_value=100.0, step=0.01)
+    price_change_desired = st.number_input("What is the price change desired in %", min_value=-100.0, max_value=100.0, step=0.01, value=None)
 
     if st.button("Filter"):
         st.subheader("List of coins with price change ({:.2f}% from 6 months ago)".format(price_change_desired))
         st.write("Symbol | Price Change % (+/-)")
+        with st.spinner("Fetching coins ...."):
         
-        # Fetch all coins
-        cursor.execute("SELECT DISTINCT symbol, price, timestamp FROM coinmarket_historical_data")
-        coins = cursor.fetchall()
-        
-        # Filter coins based on price change
-        for coin in coins:
-            symbol, current_price, timestamp = coin
-            historical_price = fetch_historical_price(symbol, timestamp)
-            if historical_price is not None:
-                percentage_change = calculate_percentage_change(current_price, historical_price)
-                if percentage_change > price_change_desired:
-                    st.write("{} | {:.2f}".format(symbol, percentage_change))
-        
+            # Fetch all coins
+            cursor.execute("SELECT DISTINCT symbol, price, timestamp FROM coinmarket_historical_data")
+            coins = cursor.fetchall()
+            
+            # Filter coins based on price change
+            for coin in coins:
+                symbol, current_price, timestamp = coin
+                historical_price = fetch_historical_price(symbol, timestamp)
+                if historical_price is not None:
+                    percentage_change = calculate_percentage_change(current_price, historical_price)
+                    if percentage_change > price_change_desired:
+                        st.write("{} | {:.2f}".format(symbol, percentage_change))
+            
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
