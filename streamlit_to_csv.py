@@ -1788,7 +1788,8 @@ def run_tab17():
     if coins_data:
         x = st.number_input("Enter the minimum market cap (X)", value=None)
         y = st.number_input("Enter the maximum market cap (Y)", value=None)
-        z = st.number_input("Enter the 24-hour volume $ (Z)", step=0.01, value=None)
+        z = st.number_input("Enter the minimum 24-hour volume (Z)", step=0.01, value=None)
+        show_vesting_data = st.selectbox("Do you want Vesting Data?", ('No', 'Yes'))
         
         if st.button("Filter"):
             if x is None and y is None:
@@ -1805,7 +1806,7 @@ def run_tab17():
                     buffer = BytesIO()
                     doc = SimpleDocTemplate(buffer, pagesize=letter)
                     data = [df.columns.tolist()] + df.values.tolist()
-                    table = Table(data, colWidths=[70, 120, 105, 100, 120])
+                    table = Table(data, colWidths=[70, 120, 115, 110, 100])
                     style = TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.grey),
                                         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                                         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -1827,39 +1828,38 @@ def run_tab17():
                         file_name="filtered_coins.pdf",
                         mime="application/pdf"
                    )
-        if z is not None :
-            show_vesting_data = st.selectbox("Do you want Vesting Data?", ('No', 'Yes'))
-            if show_vesting_data == 'Yes':
-                symbol = st.text_input('Enter the symbol of the coin:')
-                if st.button('Get Vesting Data'):
-                    df = load_data()
-                    coin_names = find_coin_name(df, symbol)
-                    print(coin_names)
-                    for coin_name in coin_names:
-                        vesting_data = fetch_vesting_data(coin_name)
-                        if vesting_data:
-                            today_date = datetime.date.today()
-                            vesting_table_data = []
-                            allocations = vesting_data['pageProps']['vestingInfo']['allocations']
-                            for allocation in allocations:
-                                name = allocation['name']
-                                token_percent = allocation['tokens_percent']
-                                token = allocation['tokens']
-                                batches = allocation.get('batches', [])
-                                for batch in batches:
-                                    date = batch.get('date')
-                                    unlock_percent = batch.get('unlock_percent')
-                                    if date:
-                                        date_obj = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                                        if date_obj >= today_date:
-                                            vesting_table_data.append([name, token_percent, token, date, unlock_percent])
-                            vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
-                            vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
-                            st.write(f"Vesting Data for coin {coin_name}")
-                            st.table(vesting_table_data)
-                        else:
-                            st.write(f"Vesting Data is missing in {coin_name} coin.")
 
+        
+        if show_vesting_data == 'Yes':
+            symbol = st.text_input('Enter the symbol of the coin:')
+            if st.button('Get Vesting Data'):
+                df = load_data()
+                coin_names = find_coin_name(df, symbol)
+                print(coin_names)
+                for coin_name in coin_names:
+                    vesting_data = fetch_vesting_data(coin_name)
+                    if vesting_data:
+                        today_date = datetime.date.today()
+                        vesting_table_data = []
+                        allocations = vesting_data['pageProps']['vestingInfo']['allocations']
+                        for allocation in allocations:
+                            name = allocation['name']
+                            token_percent = allocation['tokens_percent']
+                            token = allocation['tokens']
+                            batches = allocation.get('batches', [])
+                            for batch in batches:
+                                date = batch.get('date')
+                                unlock_percent = batch.get('unlock_percent')
+                                if date:
+                                    date_obj = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ").date()
+                                    if date_obj >= today_date:
+                                        vesting_table_data.append([name, token_percent, token, date, unlock_percent])
+                        vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
+                        vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
+                        st.write(f"Vesting Data for coin {coin_name}")
+                        st.table(vesting_table_data)
+                    else:
+                        st.write(f"Vesting Data is missing in {coin_name} coin.")
 
 
 def run_tab18():
