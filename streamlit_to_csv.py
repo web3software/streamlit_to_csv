@@ -547,7 +547,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711459206794/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1711546252397/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -556,7 +556,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711459206794/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1711546252397/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -565,7 +565,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711459206794/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1711546252397/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -575,7 +575,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711459206794/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1711546252397/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -1720,7 +1720,7 @@ def filter_data(coins_data, x=None, y=None, z=None):
         symbol = coin['symbol']
 
         if x is None:
-            x = 0
+            x = 1
         if y is None:
             y = float('inf')
 
@@ -1741,7 +1741,7 @@ def filter_data(coins_data, x=None, y=None, z=None):
                 'marketcap': market_cap,
                 'volume_24h': volume_24h,
                 # 'price': price,
-                'volume_24h_dollar': volume_24h_dollar  # Add new column
+                'volume_24h_dollar': f"${volume_24h_dollar:.2f}"  # Add new column
             })
 
     filtered_coins.sort(key=lambda x: x['marketcap'])
@@ -1788,9 +1788,10 @@ def run_tab17():
     if coins_data:
         x = st.number_input("Enter the minimum market cap (X)", value=None)
         y = st.number_input("Enter the maximum market cap (Y)", value=None)
-        z = st.number_input("Enter the minimum 24-hour volume (Z)", step=0.01, value=None)
+        z = st.number_input("Enter the 24-hour volume $ (Z)", step=0.01, value=None)
         show_vesting_data = st.selectbox("Do you want Vesting Data?", ('No', 'Yes'))
         
+        # filtered_coins = None
         if st.button("Filter"):
             if x is None and y is None:
                 st.error("Error: Either X or Y must have a value.")
@@ -1801,7 +1802,8 @@ def run_tab17():
                 if filtered_coins is not None:
                     # Convert filtered data to DataFrame
                     df = pd.DataFrame(filtered_coins)
-                    st.write(df)
+                    st.session_state.filtered_df = df
+                    
                     # Generate PDF
                     buffer = BytesIO()
                     doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -1828,7 +1830,8 @@ def run_tab17():
                         file_name="filtered_coins.pdf",
                         mime="application/pdf"
                    )
-
+        if 'filtered_df' in st.session_state:
+            st.write(st.session_state.filtered_df)
         
         if show_vesting_data == 'Yes':
             symbol = st.text_input('Enter the symbol of the coin:')
@@ -1839,7 +1842,7 @@ def run_tab17():
                 for coin_name in coin_names:
                     vesting_data = fetch_vesting_data(coin_name)
                     if vesting_data:
-                        today_date = datetime.date.today()
+                        # today_date = datetime.date.today()
                         vesting_table_data = []
                         allocations = vesting_data['pageProps']['vestingInfo']['allocations']
                         for allocation in allocations:
@@ -1852,11 +1855,11 @@ def run_tab17():
                                 unlock_percent = batch.get('unlock_percent')
                                 if date:
                                     date_obj = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ").date()
-                                    if date_obj >= today_date:
+                                    if date_obj >= datetime.date(2024, 3, 1) and date_obj <= datetime.date(2024, 4, 30):
                                         vesting_table_data.append([name, token_percent, token, date, unlock_percent])
                         vesting_table_data.sort(key=lambda x: x[3] if x[3] else "")
                         vesting_table_data.insert(0, ["Allocation Name", "Token Percent", "Tokens", "Batch Date", "Unlock Percent"])
-                        st.write(f"Vesting Data for coin {coin_name}")
+                        st.write(f"Vesting Data for coin {coin_name} for March-April 2024")
                         st.table(vesting_table_data)
                     else:
                         st.write(f"Vesting Data is missing in {coin_name} coin.")
