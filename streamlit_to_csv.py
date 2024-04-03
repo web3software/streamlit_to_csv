@@ -1910,7 +1910,7 @@ def run_tab18():
         # Fetch all coins
         cursor.execute("SELECT DISTINCT symbol, coin_name FROM coinmarket_historical_data")
         coins = cursor.fetchall()
-        
+        from datetime import datetime, timedelta
         # Filter coins based on price change
         for coin in coins:
             symbol, coin_name = coin
