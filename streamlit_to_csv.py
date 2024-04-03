@@ -547,7 +547,7 @@ def fetch_dataa(url):
 
 
 def fetch_price_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711717615742/en/price/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1712058998531/en/price/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -556,7 +556,7 @@ def fetch_price_data(coin_name):
         return data
 
 def fetch_token_sale_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711717615742/en/ico/{coin_name}.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1712058998531/en/ico/{coin_name}.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -565,7 +565,7 @@ def fetch_token_sale_data(coin_name):
         return data
 
 def fetch_market_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711717615742/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1712058998531/en/price/{coin_name}/exchanges.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -575,7 +575,7 @@ def fetch_market_data(coin_name):
         return data
 
 def fetch_vesting_data(coin_name):
-    url = f"https://cryptorank.io/_next/data/1711717615742/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
+    url = f"https://cryptorank.io/_next/data/1712058998531/en/price/{coin_name}/vesting.json?coinKey={coin_name}"
     # st.write(url)
     data = fetch_dataa(url)
     if "notFound" in data and data["notFound"]:
@@ -1874,41 +1874,56 @@ def run_tab18():
     conn = psycopg2.connect(connection_string)
     cursor = conn.cursor()
 
-    # Function to calculate percentage change
     def calculate_percentage_change(current_price, old_price):
+        if old_price == 0:
+            return None  # Return None or any other default value
         return ((current_price - old_price) / old_price) * 100
+
+
+    # Function to fetch latest price of a coin
+    def fetch_latest_price(symbol):
+        cursor.execute("SELECT price FROM coinmarket_historical_data WHERE symbol = %s ORDER BY timestamp DESC LIMIT 1", (symbol,))
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return None
 
     # Function to fetch historical price of a coin
     def fetch_historical_price(symbol, timestamp):
-        six_months_ago = timestamp - timedelta(days=180)
+        six_months_ago = timestamp - timedelta(days=170)
         cursor.execute("SELECT price FROM coinmarket_historical_data WHERE symbol = %s AND timestamp >= %s ORDER BY timestamp ASC LIMIT 1", (symbol, six_months_ago))
         result = cursor.fetchone()
         if result:
             return result[0]
         else:
             return None
-        
+
+    # Streamlit UI
     st.title("Filter by Price Action")
-    price_change_desired = st.number_input("What is the price change desired in %", min_value=-100.0, max_value=100.0, step=0.01, value=None)
+    price_change_desired = st.number_input("What is the price change desired in %", min_value=-100.0, value=None, step=0.01)
 
     if st.button("Filter"):
         st.subheader("List of coins with price change ({:.2f}% from 6 months ago)".format(price_change_desired))
-        st.write("Symbol | Price Change % (+/-)")
-        with st.spinner("Fetching coins ...."):
+        st.write("Coin Name | Symbol | Price Change % (+/-)")
         
-            # Fetch all coins
-            cursor.execute("SELECT DISTINCT symbol, price, timestamp FROM coinmarket_historical_data")
-            coins = cursor.fetchall()
-            
-            # Filter coins based on price change
-            for coin in coins:
-                symbol, current_price, timestamp = coin
-                historical_price = fetch_historical_price(symbol, timestamp)
-                if historical_price is not None:
-                    percentage_change = calculate_percentage_change(current_price, historical_price)
-                    if percentage_change > price_change_desired:
-                        st.write("{} | {:.2f}".format(symbol, percentage_change))
-            
+        # Fetch all coins
+        cursor.execute("SELECT DISTINCT symbol, coin_name FROM coinmarket_historical_data")
+        coins = cursor.fetchall()
+        
+        # Filter coins based on price change
+        for coin in coins:
+            symbol, coin_name = coin
+            latest_price = fetch_latest_price(symbol)
+            if latest_price is not None:
+                six_months_ago_price = fetch_historical_price(symbol, datetime.now() - timedelta(days=170))
+                if six_months_ago_price is not None:
+                    percentage_change = calculate_percentage_change(latest_price, six_months_ago_price)
+                    # if (price_change_desired >= 0 and percentage_change >= price_change_desired) or \
+                    #    (price_change_desired < 0 and percentage_change <= price_change_desired):
+                    if percentage_change is not None:
+                        if percentage_change >= price_change_desired:
+                            st.write("{} | {} | {:.2f}".format(coin_name, symbol, percentage_change))
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
