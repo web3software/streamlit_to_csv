@@ -1925,11 +1925,42 @@ def run_tab18():
                         if percentage_change >= price_change_desired:
                             st.write("{} | {} | {:.2f}".format(coin_name, symbol, percentage_change))
 
+def run_tab19():
+    # Function to connect to PostgreSQL database using a connection string
+    def connect_db(conn_string):
+        conn = psycopg2.connect(conn_string)
+        return conn
+
+    # Function to update values in the database for a specific ID
+    def update_values(conn, quantity, leverage, id=1):
+        cur = conn.cursor()
+        cur.execute("UPDATE quantity_leverage_table SET quantity = %s, leverage = %s WHERE id = %s", (quantity, leverage, id))
+        conn.commit()
+
+    # Streamlit UI
+    st.title("Update Quantity and Leverage")
+
+    # Input fields for quantity and leverage
+    quantity = st.number_input("Enter Quantity:", value=None, format='%f')
+    leverage = st.number_input("Enter Leverage:", value=None, format='%f')
+
+    # Connection string
+    # conn_string = os.getenv("DATABASE_URL")
+    conn_string = st.secrets["DATABASE_URL"]
+
+    if st.button("Update"):
+        try:
+            conn = connect_db(conn_string)
+            update_values(conn, quantity, leverage)
+            st.success("Values Updated Successfully!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
 
 # Create tabs using st.selectbox
-selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report", "Coin Filtering Today", "Coin Filtering Historical"])
+selected_tab = st.selectbox("Select Tab", ["Discord", "Decrypt News","Coin Desk News","YouTube", "News BTC", "Crypto News", "Coin Desk Market", "Coin Desk Finance", "Coin Telegraph", "Data From Database", "Twitter Stats", "Coin Market Cap Data", "Coin Market Cap Graph", "Coin Fundraising Data", "Chat with Database", "PDF Research Report", "Coin Filtering Today", "Coin Filtering Historical", "Quantity and Leverage"])
 
 # Display content based on the selected tab
 if selected_tab == "Discord":
@@ -1968,3 +1999,5 @@ elif selected_tab == "Coin Filtering Today":
     run_tab17()
 elif selected_tab == "Coin Filtering Historical":
     run_tab18()
+elif selected_tab == "Quantity and Leverage":
+    run_tab19()
