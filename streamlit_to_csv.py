@@ -1941,7 +1941,7 @@ def run_tab19():
     st.title("Update Quantity and Leverage")
 
     # Input fields for quantity and leverage
-    quantity = st.number_input("Enter Quantity:", value=None, format='%f')
+    quantity = st.number_input("Enter Quantity in USDT:", value=None, format='%f')
     leverage = st.number_input("Enter Leverage:", value=None, format='%f')
 
     # Connection string
