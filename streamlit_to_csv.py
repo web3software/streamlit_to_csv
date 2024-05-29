@@ -1196,7 +1196,7 @@ def run_tab4():
                     fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
             else:
                 print(f"No videos found for Channel {channel_id}.")
-    os.remove(temp_key_file_path)
+    # os.remove(temp_key_file_path)
 
         # for channel_id in CHANNEL_IDS:
         #     latest_videos = get_latest_videos(DEVELOPER_KEY, channel_id)
@@ -1208,7 +1208,7 @@ def run_tab4():
         #             fetch_video_details(video_url, DEVELOPER_KEY, channel_id)
         #     else:
         #         print(f"No videos found for Channel {channel_id}.")
-    #os.remove(temp_key_file_path)
+    os.remove(temp_key_file_path)
 
 def run_tab5():
     st.subheader("Tab 5: News BTC News")
@@ -1930,6 +1930,12 @@ def run_tab19():
     def connect_db(conn_string):
         conn = psycopg2.connect(conn_string)
         return conn
+    
+    def fetch_current_values(conn, id=1):
+        cur = conn.cursor()
+        cur.execute("SELECT quantity, leverage FROM quantity_leverage_table WHERE id = %s", (id,))
+        result = cur.fetchone()
+        return result if result else (None, None)
 
     # Function to update values in the database for a specific ID
     def update_values(conn, quantity, leverage, id=1):
@@ -1940,21 +1946,35 @@ def run_tab19():
     # Streamlit UI
     st.title("Update Quantity and Leverage")
 
-    # Input fields for quantity and leverage
-    quantity = st.number_input("Enter Quantity in USDT:", value=None, format='%f')
-    leverage = st.number_input("Enter Leverage:", value=None, format='%f')
-
     # Connection string
     # conn_string = os.getenv("DATABASE_URL")
     conn_string = st.secrets["DATABASE_URL"]
 
+    conn = connect_db(conn_string)
+
+    current_quantity, current_leverage = fetch_current_values(conn)
+
+    st.subheader("Current Values")
+    st.write(f"Current Quantity: {current_quantity}")
+    st.write(f"Current Leverage: {current_leverage}")
+
+    # Input fields for quantity and leverage
+    quantity = st.number_input("Enter Quantity in USDT:", value=None, format='%f')
+    leverage = st.number_input("Enter Leverage:", value=None, format='%f')
+
     if st.button("Update"):
         try:
-            conn = connect_db(conn_string)
             update_values(conn, quantity, leverage)
             st.success("Values Updated Successfully!")
+
+            new_quantity, new_leverage = fetch_current_values(conn)
+            st.subheader("Updated Values")
+            st.write(f"New Quantity: {new_quantity}")
+            st.write(f"New Leverage: {new_leverage}")
         except Exception as e:
             st.error(f"Error: {e}")
+        finally:
+            conn.close()
 
 # Main Streamlit UI
 st.title("DATA SCRAPPER")
